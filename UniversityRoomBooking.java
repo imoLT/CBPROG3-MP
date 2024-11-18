@@ -197,13 +197,12 @@ public class UniversityRoomBooking {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 
         // Define time slot generation logic
-        int startHour = 6; // Start at 6:00 AM
         int endHour = 22; // End at 10:00 PM
         int intervalMinutes = 90; // Each slot is 1 hour 30 minutes
         int gapMinutes = 15; // 15 minutes between slots
 
-        int currentHour = startHour;
-        int currentMinute = 0;
+        int currentHour = 7;
+        int currentMinute = 30;
 
         while (currentHour < endHour || (currentHour == endHour && currentMinute == 0)) {
             // Calculate the start and end times for the slot
@@ -328,9 +327,23 @@ public class UniversityRoomBooking {
         // "Done Booking" button
         JButton doneButton = new JButton("Done Booking");
         doneButton.addActionListener(e -> {
-            JOptionPane.showMessageDialog(parentFrame, "Booking finished.");
+            StringBuilder bookingSummary = new StringBuilder("Booking Summary:\n");
+            bookingSummary.append("Timeframe: ").append(startDate).append(" to ").append(endDate).append("\n\n");
+        
+            if (bookedRooms.isEmpty()) {
+                bookingSummary.append("No rooms were booked.");
+            } else {
+                for (RoomBooking booking : bookedRooms) {
+                    bookingSummary.append("Time Slot: ").append(booking.getTimeSlot())
+                            .append("\nRoom: ").append(booking.getRoom())
+                            .append("\n\n");
+                }
+            }
+        
+            JOptionPane.showMessageDialog(parentFrame, bookingSummary.toString());
             doneButton.setEnabled(false); // Disable the button after pressing
         });
+        
 
         buttonPanel.add(doneButton);
 
