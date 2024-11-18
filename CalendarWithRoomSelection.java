@@ -197,13 +197,14 @@ public class CalendarWithRoomSelection {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 
         // Define time slot generation logic
-        int startHour = 6; // Start at 6:00 AM
-        int endHour = 22; // End at 10:00 PM
+        int startHour = 7; // Start at 6:00 AM
+        int startMinute = 30;
+        int endHour = 23; // End at 11:00 PM
         int intervalMinutes = 90; // Each slot is 1 hour 30 minutes
         int gapMinutes = 15; // 15 minutes between slots
 
         int currentHour = startHour;
-        int currentMinute = 0;
+        int currentMinute = startMinute;
 
         while (currentHour < endHour || (currentHour == endHour && currentMinute == 0)) {
             // Calculate the start and end times for the slot
