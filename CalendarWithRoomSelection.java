@@ -1,6 +1,8 @@
 import java.awt.*;
+import java.awt.event.*;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
@@ -8,6 +10,7 @@ import javax.swing.table.DefaultTableModel;
 public class CalendarWithRoomSelection {
     private static LocalDate startDate = null;
     private static LocalDate endDate = null;
+    private static ArrayList<RoomBooking> bookedRooms = new ArrayList<>(); // To store all booked rooms
 
     public static void main(String[] args) {
         // Create the main frame
@@ -188,6 +191,7 @@ public class CalendarWithRoomSelection {
         timeframeLabel.setFont(new Font("Arial", Font.BOLD, 14));
         timeframeLabel.setHorizontalAlignment(SwingConstants.CENTER);
         timeSlotFrame.add(timeframeLabel, BorderLayout.NORTH);
+        
         // Create a panel for time slots
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -231,63 +235,160 @@ public class CalendarWithRoomSelection {
         JFrame roomFrame = new JFrame("Room Selection");
         roomFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         roomFrame.setSize(400, 300);
-
+    
         JLabel label = new JLabel("Timeframe: " + startDate + " to " + endDate + " | Slot: " + timeSlot);
         label.setFont(new Font("Arial", Font.BOLD, 14));
         label.setHorizontalAlignment(SwingConstants.CENTER);
-
+    
         // Create buttons for classrooms and laboratories
         JButton classroomsButton = new JButton("Classrooms");
         classroomsButton.addActionListener(e -> showRooms(roomFrame, "Classrooms", new String[]{"MRE 111/112", "MRE 113/114", "MRE 201"}, startDate, endDate, timeSlot));
-
+    
         JButton laboratoriesButton = new JButton("Laboratories");
         laboratoriesButton.addActionListener(e -> showRooms(roomFrame, "Laboratories", new String[]{"MRELABA", "MRE309", "MRE310"}, startDate, endDate, timeSlot));
-
+    
         JPanel buttonPanel = new JPanel(new FlowLayout());
         buttonPanel.add(classroomsButton);
         buttonPanel.add(laboratoriesButton);
-
+    
         roomFrame.setLayout(new BorderLayout());
         roomFrame.add(label, BorderLayout.NORTH);
         roomFrame.add(buttonPanel, BorderLayout.CENTER);
         roomFrame.setVisible(true);
     }
-
+    
     private static void showRooms(JFrame parentFrame, String type, String[] rooms, LocalDate startDate, LocalDate endDate, String timeSlot) {
-        parentFrame.dispose(); // Close the previous frame
+        parentFrame.dispose(); // Use this to close the previous frame
 
+        // Create the frame for room selection
         JFrame roomListFrame = new JFrame(type + " List");
         roomListFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        roomListFrame.setSize(300, 200);
+        roomListFrame.setSize(400, 300);
 
-        JLabel titleLabel = new JLabel(type + " Available");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 16));
-        titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
-
+        // Use a JPanel with GridLayout for room layout
         JPanel roomPanel = new JPanel();
-        roomPanel.setLayout(new BoxLayout(roomPanel, BoxLayout.Y_AXIS));
+        roomPanel.setLayout(new GridLayout(0, 2, 10, 10)); // 2 columns, 10px gap between items
 
+        // Loop through rooms to create a panel for each room
         for (String room : rooms) {
-            JButton roomButton = new JButton(room);
-            roomButton.addActionListener(e -> {
-                // Show final confirmation dialog
-                JOptionPane.showMessageDialog(roomListFrame,
-                        "You have selected:\n" +
-                                "Timeframe: " + startDate + " to " + endDate + "\n" +
-                                "Time Slot: " + timeSlot + "\n" +
-                                "Room: " + room,
-                        "Selection Confirmation",
-                        JOptionPane.INFORMATION_MESSAGE);
-                roomListFrame.dispose(); // Close after confirmation
+            JPanel roomPanelItem = new JPanel();
+            roomPanelItem.setPreferredSize(new Dimension(150, 100)); // Room panel size
+
+            // Check if the room is booked
+            boolean isBookedForSlot = isRoomBooked(startDate, timeSlot, room);
+            
+            if (isBookedForSlot) {
+                roomPanelItem.setBackground(Color.RED); // Room already booked (red)
+            } else {
+                roomPanelItem.setBackground(Color.GREEN); // Available room (green)
+            }
+
+            // Create label for the room
+            JLabel roomLabel = new JLabel(room, JLabel.CENTER);
+            roomLabel.setForeground(Color.WHITE);
+            roomLabel.setPreferredSize(new Dimension(140, 90)); // Label size to fit within the panel
+
+            // Add label to the room panel
+            roomPanelItem.add(roomLabel);
+
+            // Add action when room is clicked
+            roomPanelItem.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    // Only change color if booking is not done
+                    if (!isBookedForSlot) {
+                        // Toggle room booking status (Green to Red and vice versa)
+                        if (roomPanelItem.getBackground() == Color.GREEN) {
+                            roomPanelItem.setBackground(Color.RED); // Book the room (red)
+                            roomLabel.setText(roomLabel.getText() + " (Booked)"); // Update label text
+
+                            // Add this booking to the bookedRooms list
+                            bookedRooms.add(new RoomBooking(startDate, timeSlot, room, true));
+                        } else {
+                            roomPanelItem.setBackground(Color.GREEN); // Unbook the room (green)
+                            roomLabel.setText(roomLabel.getText().replace(" (Booked)", "")); // Update label text
+
+                            // Remove the booking from the list
+                            removeBooking(startDate, timeSlot, room);
+                        }
+                    } else {
+                        JOptionPane.showMessageDialog(parentFrame, "Booking Finalized");
+                    }
+                }
             });
-            roomPanel.add(roomButton);
+
+            // Add the room panel item to the main room panel
+            roomPanel.add(roomPanelItem);
         }
 
-        JScrollPane scrollPane = new JScrollPane(roomPanel);
+        // Create a panel for the button at the bottom
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
 
-        roomListFrame.setLayout(new BorderLayout());
-        roomListFrame.add(titleLabel, BorderLayout.NORTH);
-        roomListFrame.add(scrollPane, BorderLayout.CENTER);
+        // "Done Booking" button
+        JButton doneButton = new JButton("Done Booking");
+        doneButton.addActionListener(e -> {
+            JOptionPane.showMessageDialog(parentFrame, "Booking finished.");
+            doneButton.setEnabled(false); // Disable the button after pressing
+        });
+
+        buttonPanel.add(doneButton);
+
+        // Add components to the frame
+        roomListFrame.add(roomPanel, BorderLayout.CENTER);
+        roomListFrame.add(buttonPanel, BorderLayout.SOUTH);
+
+        // Make the frame visible
         roomListFrame.setVisible(true);
     }
-}    
+
+    // Method to check if a room is booked for a given date and time slot
+    private static boolean isRoomBooked(LocalDate date, String timeSlot, String room) {
+        for (RoomBooking booking : bookedRooms) {
+            if (booking.getDate().equals(date) && booking.getTimeSlot().equals(timeSlot) && booking.getRoom().equals(room)) {
+                return booking.isBooked();
+            }
+        }
+        return false;
+    }
+
+    // Method to remove booking when unbooking
+    private static void removeBooking(LocalDate date, String timeSlot, String room) {
+        bookedRooms.removeIf(booking -> booking.getDate().equals(date) && booking.getTimeSlot().equals(timeSlot) && booking.getRoom().equals(room));
+    }
+
+    // Method for the arraylist
+    public static class RoomBooking {
+        private LocalDate date;
+        private String timeSlot;
+        private String room;
+        private boolean booked;
+
+        public RoomBooking(LocalDate date, String timeSlot, String room, boolean booked) {
+            this.date = date;
+            this.timeSlot = timeSlot;
+            this.room = room;
+            this.booked = booked;
+        }
+
+        public LocalDate getDate() {
+            return date;
+        }
+
+        public String getTimeSlot() {
+            return timeSlot;
+        }
+
+        public String getRoom() {
+            return room;
+        }
+
+        public boolean isBooked() {
+            return booked;
+        }
+
+        public void setBooked(boolean booked) {
+            this.booked = booked;
+        }
+    }
+}
