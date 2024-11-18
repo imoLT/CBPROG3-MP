@@ -3,34 +3,50 @@ import java.awt.event.*;
 import java.awt.Component; 
 import java.awt.GridBagLayout;
 import java.awt.GridBagConstraints;
+import java.awt.BorderLayout;
+import java.awt.Insets;
 
 public class SignUp implements ActionListener {
     
     private static JLabel idNumLabel, passLabel, deptLabel, roleLabel, result;
     private static JTextField idNum, password;
     private static JButton finishAcct;
+	private static JComboBox<String> dc, rc;
 
     // Method to create a new panel with a result label
     public void createPanel(JLabel resultLabel, boolean created){
         // Create the frame and panel
         JFrame frame = new JFrame();
         JPanel panel = new JPanel();
+        
+        // Set frame size (you can adjust it based on the label content size)
+        frame.setSize(400, 200); // Adjust the frame size based on your content
 
-        frame.setSize(400, 400);
-		if (!created)
-			frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-		else
-			frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        // Close operation settings
+        if (!created)
+            frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        else
+            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        
         frame.add(panel);
+        
+        // Use BorderLayout to ensure the label is in the center
+        panel.setLayout(new BorderLayout());
 
-        panel.setLayout(null);
+        // Add padding or margin around the entire panel
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20)); // 20px padding on all sides
+        
+        // Make sure the result label takes up the entire space
+        resultLabel.setText("<html>" + resultLabel.getText() + "</html>"); // Wrap text for long messages
+        resultLabel.setHorizontalAlignment(SwingConstants.CENTER);  // Center horizontally
+        resultLabel.setVerticalAlignment(SwingConstants.CENTER);  // Center vertically
+        
+        // Add the label to the center of the panel
+        panel.add(resultLabel, BorderLayout.CENTER);
 
-        // Set the text of the result label
-        resultLabel.setBounds(10, 10, 400, 300);
-        panel.add(resultLabel);
-
-        // Make the frame visible
-        frame.setVisible(true);
+        // Ensure the frame displays properly
+        frame.setLocationRelativeTo(null); // Center the frame on the screen
+        frame.setVisible(true);  // Make the frame visible
     }
 
     // ActionListener for handling events
@@ -48,10 +64,23 @@ public class SignUp implements ActionListener {
             }
 			
             else {
-                JLabel result = new JLabel("Password field is empty. Please enter a password and try again!");
+                result = new JLabel("Password field is empty. Please enter a password and try again!");
                 createPanel(result, false);
             }
         }
+		
+		// Check if the user selected "Option" in either the department or program role dropdowns
+        else if (dc.getSelectedItem().equals("Option") || rc.getSelectedItem().equals("Option")) {
+			if (dc.getSelectedItem().equals("Option")){
+				result = new JLabel("Please choose your department.");
+				createPanel(result, false);
+			}
+			else {
+				result = new JLabel("Please choose your role.");
+				createPanel(result, false);
+			}
+        }
+		
         else {
             try {
                 if (e.getSource() == finishAcct) {
@@ -59,7 +88,7 @@ public class SignUp implements ActionListener {
                     createPanel(result, true);
                 }
             } catch (Exception f) {
-                System.out.println("Invalid.");
+                System.out.println("Invalid input for ID number. Please make sure to enter numbers only!");
             }
         }
     }
@@ -115,8 +144,8 @@ public class SignUp implements ActionListener {
         panel.add(deptLabel, gbc);
 
         gbc.gridx = 1;  // Move to the next column for the combo box
-        String[] deptChoices = { "CCS", "COS", "BAGCED", "GCOE", "CLA", "RVRCOB", "SOE", "SHS" };
-        final JComboBox<String> dc = new JComboBox<String>(deptChoices);
+        String[] deptChoices = { "Option", "CCS", "COS", "BAGCED", "GCOE", "CLA", "RVRCOB", "SOE", "SHS" };
+        dc = new JComboBox<String>(deptChoices);
         panel.add(dc, gbc);
 
         // Move to the next row
@@ -128,8 +157,8 @@ public class SignUp implements ActionListener {
         panel.add(roleLabel, gbc);
 
         gbc.gridx = 1;  // Move to the next column for the combo box
-        String[] roleChoices = { "Professor", "Campus Administration", "ITS", "Security Office" };
-        final JComboBox<String> rc = new JComboBox<String>(roleChoices);
+        String[] roleChoices = { "Option", "Professor", "Campus Administration", "ITS", "Security Office" };
+        rc = new JComboBox<String>(roleChoices);
         panel.add(rc, gbc);
 
         // Move to the next row for the button
