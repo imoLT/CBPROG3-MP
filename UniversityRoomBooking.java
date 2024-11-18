@@ -7,74 +7,52 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
-public class CalendarWithRoomSelection {
+public class UniversityRoomBooking {
     private static LocalDate startDate = null;
     private static LocalDate endDate = null;
-    private static ArrayList<RoomBooking> bookedRooms = new ArrayList<>();
+    private static ArrayList<RoomBooking> bookedRooms = new ArrayList<>(); // To store all booked rooms
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(CalendarWithRoomSelection::openMonthSelectionMenu);
-    }
-
-    private static void openMonthSelectionMenu() {
-        JFrame monthFrame = new JFrame("Select a Month");
-        monthFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        monthFrame.setSize(400, 300);
-
-        JPanel monthPanel = new JPanel();
-        monthPanel.setLayout(new GridLayout(4, 3, 10, 10));
-        monthPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-        // Create buttons for each month
-        String[] months = {"January", "February", "March", "April", "May", "June",
-                "July", "August", "September", "October", "November", "December"};
-
-        for (int i = 0; i < months.length; i++) {
-            int monthIndex = i + 1; // Adjust for 1-based month index
-            JButton monthButton = new JButton(months[i]);
-            monthButton.addActionListener(e -> {
-                monthFrame.dispose(); // Close month selection menu
-                openCalendar(monthIndex);
-            });
-            monthPanel.add(monthButton);
-        }
-
-        monthFrame.add(monthPanel, BorderLayout.CENTER);
-        monthFrame.setVisible(true);
-    }
-
-    private static void openCalendar(int selectedMonth) {
+        // Create the main frame
         JFrame frame = new JFrame("Calendar with Date Range Selection");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(600, 500);
         frame.setLayout(new BorderLayout());
 
+        // Get the current date
         LocalDate currentDate = LocalDate.now();
         int currentYear = currentDate.getYear();
+        int currentMonth = currentDate.getMonthValue();
 
-        JLabel monthYearLabel = new JLabel(YearMonth.of(currentYear, selectedMonth).getMonth() + " " + currentYear, SwingConstants.CENTER);
+        // Create a label for the month and year
+        JLabel monthYearLabel = new JLabel(currentDate.getMonth() + " " + currentYear, SwingConstants.CENTER);
         monthYearLabel.setFont(new Font("Arial", Font.BOLD, 20));
         frame.add(monthYearLabel, BorderLayout.NORTH);
 
+        // Create a table model that prevents editing
         String[] columns = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
         DefaultTableModel tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return false;
+                return false; // Prevent cell editing
             }
         };
 
         JTable calendarTable = new JTable(tableModel);
 
         // Fill the calendar with days
-        YearMonth yearMonth = YearMonth.of(currentYear, selectedMonth);
+        YearMonth yearMonth = YearMonth.of(currentYear, currentMonth);
         int daysInMonth = yearMonth.lengthOfMonth();
-        LocalDate firstDayOfMonth = LocalDate.of(currentYear, selectedMonth, 1);
-        int startDay = firstDayOfMonth.getDayOfWeek().getValue() % 7; // Adjust to Sunday = 0
+        LocalDate firstDayOfMonth = LocalDate.of(currentYear, currentMonth, 1);
+        int startDay = firstDayOfMonth.getDayOfWeek().getValue(); // 1 = Monday, 7 = Sunday
 
+        // Adjust startDay to match Sunday as the first column
+        startDay = (startDay % 7);
+
+        // Fill the table with days
         Object[] week = new Object[7];
         for (int i = 0; i < startDay; i++) {
-            week[i] = "";
+            week[i] = ""; // Empty cells before the first day
         }
         for (int day = 1; day <= daysInMonth; day++) {
             week[startDay++] = day;
@@ -85,73 +63,87 @@ public class CalendarWithRoomSelection {
             }
         }
         if (startDay != 0) {
-            tableModel.addRow(week);
+            tableModel.addRow(week); // Add the remaining days
         }
 
+        // Add a custom cell renderer to highlight the selected timeframe
         calendarTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
             @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            public Component getTableCellRendererComponent(JTable table, Object value,
+                                                           boolean isSelected, boolean hasFocus,
+                                                           int row, int column) {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+
+                // Reset background
                 c.setBackground(Color.WHITE);
 
                 if (value != null && !value.toString().isEmpty() && startDate != null && endDate != null) {
                     int day = Integer.parseInt(value.toString());
-                    LocalDate cellDate = LocalDate.of(currentYear, selectedMonth, day);
+                    LocalDate currentCellDate = LocalDate.of(currentYear, currentMonth, day);
 
-                    if (!cellDate.isBefore(startDate) && !cellDate.isAfter(endDate)) {
+                    if (!currentCellDate.isBefore(startDate) && !currentCellDate.isAfter(endDate)) {
+                        // Highlight cells within the selected timeframe
                         c.setBackground(Color.CYAN);
                     }
                 }
+
                 return c;
             }
         });
 
+        // Add the calendar to the frame
         JScrollPane scrollPane = new JScrollPane(calendarTable);
         frame.add(scrollPane, BorderLayout.CENTER);
 
+        // Create a panel for buttons and labels
         JPanel bottomPanel = new JPanel();
         bottomPanel.setLayout(new BoxLayout(bottomPanel, BoxLayout.Y_AXIS));
         frame.add(bottomPanel, BorderLayout.SOUTH);
 
+        // Add a label to show the selected range
         JLabel rangeLabel = new JLabel("Select a start date and an end date.");
         rangeLabel.setHorizontalAlignment(SwingConstants.CENTER);
         bottomPanel.add(rangeLabel);
 
+        // Create a button to confirm the timeframe
         JButton confirmButton = new JButton("Confirm Timeframe");
-        confirmButton.setEnabled(false);
+        confirmButton.setEnabled(false); // Initially disabled
         confirmButton.addActionListener(e -> {
             if (startDate != null && endDate != null) {
                 openTimeSlotMenu(startDate, endDate);
             }
         });
 
+        // Create a button to clear the timeframe
         JButton clearButton = new JButton("Clear Timeframe");
-        clearButton.setEnabled(false);
+        clearButton.setEnabled(false); // Initially disabled
         clearButton.addActionListener(e -> {
             startDate = null;
             endDate = null;
             rangeLabel.setText("Select a start date and an end date.");
-            calendarTable.repaint();
+            calendarTable.repaint(); // Repaint the calendar to clear highlights
             confirmButton.setEnabled(false);
             clearButton.setEnabled(false);
         });
 
+        // Add buttons to the panel
         JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout(new FlowLayout());
         buttonPanel.add(confirmButton);
         buttonPanel.add(clearButton);
         bottomPanel.add(buttonPanel);
 
-        calendarTable.addMouseListener(new MouseAdapter() {
+        // Add a mouse listener to the table for date selection
+        calendarTable.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
-            public void mouseClicked(MouseEvent e) {
+            public void mouseClicked(java.awt.event.MouseEvent e) {
                 int row = calendarTable.rowAtPoint(e.getPoint());
                 int col = calendarTable.columnAtPoint(e.getPoint());
                 Object value = calendarTable.getValueAt(row, col);
 
                 if (value != null && !value.toString().isEmpty()) {
                     int day = Integer.parseInt(value.toString());
-                    LocalDate selectedDate = LocalDate.of(currentYear, selectedMonth, day);
+                    LocalDate selectedDate = LocalDate.of(currentYear, currentMonth, day);
 
                     if (startDate == null) {
                         startDate = selectedDate;
@@ -160,20 +152,22 @@ public class CalendarWithRoomSelection {
                         endDate = selectedDate;
 
                         if (endDate.isBefore(startDate)) {
+                            // Swap dates if end date is earlier
                             LocalDate temp = startDate;
                             startDate = endDate;
                             endDate = temp;
                         }
 
                         rangeLabel.setText("Start Date: " + startDate + " | End Date: " + endDate);
-                        calendarTable.repaint();
+                        calendarTable.repaint(); // Repaint to apply highlighting
                         confirmButton.setEnabled(true);
                         clearButton.setEnabled(true);
                     } else {
+                        // Reset if both dates are already set
                         startDate = selectedDate;
                         endDate = null;
                         rangeLabel.setText("Start Date: " + startDate);
-                        calendarTable.repaint();
+                        calendarTable.repaint(); // Repaint to clear highlighting
                         confirmButton.setEnabled(false);
                         clearButton.setEnabled(false);
                     }
@@ -181,6 +175,7 @@ public class CalendarWithRoomSelection {
             }
         });
 
+        // Display the frame
         frame.setVisible(true);
     }
 
@@ -202,14 +197,13 @@ public class CalendarWithRoomSelection {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 
         // Define time slot generation logic
-        int startHour = 7; // Start at 6:00 AM
-        int startMinute = 30;
-        int endHour = 23; // End at 11:00 PM
+        int startHour = 6; // Start at 6:00 AM
+        int endHour = 22; // End at 10:00 PM
         int intervalMinutes = 90; // Each slot is 1 hour 30 minutes
         int gapMinutes = 15; // 15 minutes between slots
 
         int currentHour = startHour;
-        int currentMinute = startMinute;
+        int currentMinute = 0;
 
         while (currentHour < endHour || (currentHour == endHour && currentMinute == 0)) {
             // Calculate the start and end times for the slot
