@@ -51,7 +51,7 @@ public class SignUpView {
 
         gbc.gridx = 1;
         departmentBox = new JComboBox<>(new String[] { 
-            "Option", "CCS", "COS", "BAGCED", "GCOE", "CLA", "RVRCOB", "SOE", "SHS" 
+            "Option", "CCS", "COS", "BAGCED", "GCOE", "CLA", "RVRCOB", "SOE", "SHS", "Administration"
         });
         panel.add(departmentBox, gbc);
 
@@ -62,7 +62,7 @@ public class SignUpView {
 
         gbc.gridx = 1;
         roleBox = new JComboBox<>(new String[] { 
-            "Option", "Professor", "Campus Administration", "ITS", "Security Office" 
+            "Option", "Program Admin", "Professor", "Campus Administration", "ITS", "Security Office" 
         });
         panel.add(roleBox, gbc);
 
