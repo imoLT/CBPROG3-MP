@@ -5,7 +5,7 @@ import java.awt.event.ActionListener;
 public class SignUpView {
     private JFrame frame;
     private JTextField idNumField;
-    private JTextField passwordField;
+    private JPasswordField passwordField; // Changed to JPasswordField
     private JComboBox<String> departmentBox;
     private JComboBox<String> roleBox;
     private JButton finishButton;
@@ -32,7 +32,7 @@ public class SignUpView {
         panel.add(new JLabel("ID Number:"), gbc);
 
         gbc.gridx = 1;
-        idNumField = new JTextField(10);
+        idNumField = new JTextField(15); // Set preferred column size
         panel.add(idNumField, gbc);
 
         // Add Password label and text field
@@ -41,7 +41,7 @@ public class SignUpView {
         panel.add(new JLabel("Password:"), gbc);
 
         gbc.gridx = 1;
-        passwordField = new JPasswordField(10); // Use JPasswordField for hidden input
+        passwordField = new JPasswordField(15); // Use JPasswordField for hidden input
         panel.add(passwordField, gbc);
 
         // Add Academic Department label and dropdown
@@ -50,7 +50,7 @@ public class SignUpView {
         panel.add(new JLabel("Academic Department:"), gbc);
 
         gbc.gridx = 1;
-        departmentBox = new JComboBox<>(new String[] { 
+        departmentBox = new JComboBox<>(new String[]{
             "Option", "CCS", "COS", "BAGCED", "GCOE", "CLA", "RVRCOB", "SOE", "SHS", "Administration"
         });
         panel.add(departmentBox, gbc);
@@ -61,8 +61,8 @@ public class SignUpView {
         panel.add(new JLabel("Program Role:"), gbc);
 
         gbc.gridx = 1;
-        roleBox = new JComboBox<>(new String[] { 
-            "Option", "Program Admin", "Professor", "Campus Administration", "ITS", "Security Office" 
+        roleBox = new JComboBox<>(new String[]{
+            "Option", "Program Admin", "Professor", "Campus Administration", "ITS", "Security Office"
         });
         panel.add(roleBox, gbc);
 
@@ -84,7 +84,8 @@ public class SignUpView {
     }
 
     public String getPassword() {
-        return passwordField.getText();
+        // Convert char[] from JPasswordField to String
+        return new String(passwordField.getPassword());
     }
 
     public String getSelectedDepartment() {
@@ -100,17 +101,16 @@ public class SignUpView {
         finishButton.addActionListener(listener);
     }
 
-    // Method to display a message in a new window
+    // Method to display a message using JOptionPane
     public void showMessage(String message, boolean isFinal) {
-        JFrame resultFrame = new JFrame();
-        resultFrame.setSize(400, 200);
-        resultFrame.setDefaultCloseOperation(isFinal ? JFrame.EXIT_ON_CLOSE : JFrame.DISPOSE_ON_CLOSE);
+        // Use JOptionPane for simplicity
+        int messageType = isFinal ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.WARNING_MESSAGE;
+        JOptionPane.showMessageDialog(frame, message, "Message", messageType);
 
-        JLabel messageLabel = new JLabel("<html>" + message + "</html>", SwingConstants.CENTER);
-        messageLabel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        resultFrame.add(messageLabel);
-
-        resultFrame.setLocationRelativeTo(null); // Center the result frame
-        resultFrame.setVisible(true);
+        // Close the frame if it's the final message
+        if (isFinal) {
+            frame.dispose();
+            Start.main(new String[]{}); // Start application again
+        }
     }
 }

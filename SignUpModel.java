@@ -1,13 +1,22 @@
 public class SignUpModel {
     private String idNumber;
+    private String username;
     private String password;
     private String department;
     private String role;
-	public static boolean adminAvailable = false;
 
+    // Constructor
+    public SignUpModel(String username, String idNumber, String password, String role) {
+        this.username = username;
+        this.idNumber = idNumber;
+        this.password = password;
+        this.role = role;
+    }
+
+    // Validation method
     public boolean isInputValid() {
-        return idNumber != null && !idNumber.isEmpty() &&
-               password != null && !password.isEmpty() &&
+        return idNumber != null && !idNumber.isEmpty() && 
+               password != null && idNumber.length() == 8 &&
                department != null && !department.equals("Option") &&
                role != null && !role.equals("Option");
     }
@@ -19,6 +28,14 @@ public class SignUpModel {
 
     public void setIdNumber(String idNumber) {
         this.idNumber = idNumber;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
     }
 
     public String getPassword() {
