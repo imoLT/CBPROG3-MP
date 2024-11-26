@@ -1,5 +1,10 @@
 import java.awt.*;
 import java.awt.event.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -12,9 +17,10 @@ public class UniversityRoomBooking {
     private static ArrayList<RoomBooking> bookedRooms = new ArrayList<>();
 
     public static void main(String[] args) {
+        DatabaseHelper.initializeDatabase(); // Ensure the database is set up
         openCalendar(LocalDate.now().getMonthValue());
     }
-
+    
     private static void openCalendar(int initialMonth) {
         JFrame frame = new JFrame("Calendar - Single Date Selection");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -216,116 +222,135 @@ public class UniversityRoomBooking {
     }
 
     private static void openRoomSelectionMenu(LocalDate selectedDate, String timeSlot) {
-        // Create a new frame for room selection
         JFrame roomFrame = new JFrame("Room Selection");
         roomFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        roomFrame.setSize(400, 300);
+        roomFrame.setSize(400, 200);
+        roomFrame.setLayout(new BorderLayout());
     
+        // Label showing the selected date and time slot
         JLabel label = new JLabel("Date: " + selectedDate + " | Slot: " + timeSlot);
         label.setFont(new Font("Arial", Font.BOLD, 14));
         label.setHorizontalAlignment(SwingConstants.CENTER);
     
-        // Create buttons for classrooms and laboratories
-        JButton classroomsButton = new JButton("Classrooms");
-        classroomsButton.addActionListener(e -> showRooms(roomFrame, "Classrooms", new String[]{"MRE 111/112", "MRE 113/114", "MRE 201"}, selectedDate, timeSlot));
+        // Dropdown to select room type
+        JComboBox<String> roomTypeDropdown = new JComboBox<>(new String[]{"Classrooms", "Laboratories"});
+        roomTypeDropdown.setFont(new Font("Arial", Font.PLAIN, 12));
     
-        JButton laboratoriesButton = new JButton("Laboratories");
-        laboratoriesButton.addActionListener(e -> showRooms(roomFrame, "Laboratories", new String[]{"MRELABA", "MRE309", "MRE310"}, selectedDate, timeSlot));
+        // Button to proceed with room selection
+        JButton proceedButton = new JButton("Select Room Type");
+        proceedButton.addActionListener(e -> {
+            String selectedType = (String) roomTypeDropdown.getSelectedItem();
+            String dbType = selectedType.equalsIgnoreCase("Classrooms") ? "classroom" : "laboratory"; // Map dropdown value
+            showRooms(roomFrame, dbType, selectedDate, timeSlot); // Fetch and display rooms
+        });
     
-        JPanel buttonPanel = new JPanel(new FlowLayout());
-        buttonPanel.add(classroomsButton);
-        buttonPanel.add(laboratoriesButton);
+        // Panel to hold dropdown and button
+        JPanel panel = new JPanel(new FlowLayout());
+        panel.add(roomTypeDropdown);
+        panel.add(proceedButton);
     
-        roomFrame.setLayout(new BorderLayout());
+        // Add components to the frame
         roomFrame.add(label, BorderLayout.NORTH);
-        roomFrame.add(buttonPanel, BorderLayout.CENTER);
+        roomFrame.add(panel, BorderLayout.CENTER);
         roomFrame.setVisible(true);
     }
     
-    private static void showRooms(JFrame parentFrame, String type, String[] rooms, LocalDate selectedDate, String timeSlot) {
-        parentFrame.dispose(); // Use this to close the previous frame
-
-        // Create the frame for room selection
-        JFrame roomListFrame = new JFrame(type + " List");
-        roomListFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        roomListFrame.setSize(400, 300);
-
-        // Use a JPanel with GridLayout for room layout
-        JPanel roomPanel = new JPanel();
-        roomPanel.setLayout(new GridLayout(0, 2, 10, 10)); // 2 columns, 10px gap between items
-
-        // Loop through rooms to create a panel for each room
-        for (String room : rooms) {
-            JPanel roomPanelItem = new JPanel();
-            roomPanelItem.setPreferredSize(new Dimension(150, 100)); // Room panel size
-
-            // Check if the room is booked
-            boolean isBookedForSlot = isRoomBooked(selectedDate, timeSlot, room);
+    
+    private static ArrayList<String> fetchRoomsFromDatabase(String category) {
+        ArrayList<String> rooms = new ArrayList<>();
+        String fetchQuery = "SELECT room_name FROM rooms WHERE LOWER(category) = ?";
+        
+        try (Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/room_db", "root", "cbinfom");
+             PreparedStatement pstmt = conn.prepareStatement(fetchQuery)) {
             
-            if (isBookedForSlot) {
-                roomPanelItem.setBackground(Color.RED); // Room already booked (red)
-            } else {
-                roomPanelItem.setBackground(Color.GREEN); // Available room (green)
+            pstmt.setString(1, category.toLowerCase()); // Ensure case-insensitivity
+            ResultSet rs = pstmt.executeQuery();
+            
+            while (rs.next()) {
+                rooms.add(rs.getString("room_name"));
             }
-
-            // Create label for the room
-            JLabel roomLabel = new JLabel(room, JLabel.CENTER);
-            roomLabel.setForeground(Color.WHITE);
-            roomLabel.setPreferredSize(new Dimension(140, 90)); // Label size to fit within the panel
-
-            // Add label to the room panel
-            roomPanelItem.add(roomLabel);
-
-            // Add action when room is clicked
-            roomPanelItem.addMouseListener(new MouseAdapter() {
-                @Override
-                public void mouseClicked(MouseEvent e) {
-                    // Only change color if booking is not done
-                    if (!isBookedForSlot) {
-                        // Toggle room booking status (Green to Red and vice versa)
-                        if (roomPanelItem.getBackground() == Color.GREEN) {
-                            roomPanelItem.setBackground(Color.RED); // Book the room (red)
-                            roomLabel.setText(roomLabel.getText() + " (Booked)"); // Update label text
-
-                            // Add this booking to the bookedRooms list
-                            bookedRooms.add(new RoomBooking(selectedDate, timeSlot, room, true));
-                        } else {
-                            roomPanelItem.setBackground(Color.GREEN); // Unbook the room (green)
-                            roomLabel.setText(roomLabel.getText().replace(" (Booked)", "")); // Update label text
-
-                            // Remove the booking from the list
-                            removeBooking(selectedDate, timeSlot, room);
-                        }
-                    } else {
-                        JOptionPane.showMessageDialog(parentFrame, "Booking Finalized");
-                    }
-                }
-            });
-
-            // Add the room panel item to the main room panel
-            roomPanel.add(roomPanelItem);
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
+    
 
-        // Create a panel for the button at the bottom
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
-
-        // "Done Booking" button
-        JButton doneButton = new JButton("Done Booking");
-        doneButton.addActionListener(e -> {
-            JOptionPane.showMessageDialog(parentFrame, "Booking finished.");
-            doneButton.setEnabled(false); // Disable the button after pressing
-        });
-
-        buttonPanel.add(doneButton);
-
-        // Add components to the frame
-        roomListFrame.add(roomPanel, BorderLayout.CENTER);
-        roomListFrame.add(buttonPanel, BorderLayout.SOUTH);
-
-        // Make the frame visible
-        roomListFrame.setVisible(true);
+        if (rooms.isEmpty()) {
+            System.out.println("No rooms found for category: " + category);
+        } else {
+            System.out.println("Rooms fetched for category '" + category + "': " + rooms);
+        }
+        
+        return rooms;
     }
+    
+    
+
+private static void showRooms(JFrame parentFrame, String type, LocalDate selectedDate, String timeSlot) {
+    parentFrame.dispose(); // Close the previous frame
+
+    ArrayList<String> rooms = fetchRoomsFromDatabase(type); // Fetch rooms dynamically
+
+    JFrame roomFrame = new JFrame(type + " Selection");
+    roomFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+    roomFrame.setSize(400, 200);
+    roomFrame.setLayout(new BorderLayout());
+
+    // Label showing selected date and time slot
+    JLabel label = new JLabel("Date: " + selectedDate + " | Slot: " + timeSlot);
+    label.setFont(new Font("Arial", Font.BOLD, 14));
+    label.setHorizontalAlignment(SwingConstants.CENTER);
+
+    // Dropdown for room selection
+    JComboBox<String> roomDropdown = new JComboBox<>();
+    for (String room : rooms) {
+        boolean isBooked = isRoomBooked(selectedDate, timeSlot, room);
+        roomDropdown.addItem(room + (isBooked ? " (Booked)" : ""));
+    }
+
+    // Book button
+    JButton bookButton = new JButton("Book Room");
+    bookButton.addActionListener(e -> {
+        String selectedRoom = (String) roomDropdown.getSelectedItem();
+        if (selectedRoom != null) {
+            if (selectedRoom.endsWith("(Booked)")) {
+                JOptionPane.showMessageDialog(roomFrame, "This room is already booked.");
+            } else {
+                // Extract room name from dropdown item
+                String roomName = selectedRoom.replace(" (Booked)", "");
+                bookedRooms.add(new RoomBooking(selectedDate, timeSlot, roomName, true));
+                JOptionPane.showMessageDialog(roomFrame, "Room " + roomName + " successfully booked!");
+                roomDropdown.removeItem(selectedRoom); // Remove or update the dropdown item
+                roomDropdown.addItem(roomName + " (Booked)");
+            }
+        }
+    });
+
+    // Done button to finish booking
+    JButton doneButton = new JButton("Done Booking");
+    doneButton.addActionListener(e -> {
+        if (!bookedRooms.isEmpty()) {
+            for (RoomBooking booking : bookedRooms) {
+                DatabaseHelper.insertBooking(booking.getDate(), booking.getTimeSlot(), booking.getRoom());
+            }
+            JOptionPane.showMessageDialog(roomFrame, "All bookings have been saved to the database.");
+        } else {
+            JOptionPane.showMessageDialog(roomFrame, "No bookings were made.");
+        }
+        roomFrame.dispose();
+    });
+
+    // Bottom panel for buttons
+    JPanel buttonPanel = new JPanel(new FlowLayout());
+    buttonPanel.add(bookButton);
+    buttonPanel.add(doneButton);
+
+    // Add components to the frame
+    roomFrame.add(label, BorderLayout.NORTH);
+    roomFrame.add(roomDropdown, BorderLayout.CENTER);
+    roomFrame.add(buttonPanel, BorderLayout.SOUTH);
+    roomFrame.setVisible(true);
+}
+
 
     // Method to check if a room is booked for a given date and time slot
     private static boolean isRoomBooked(LocalDate date, String timeSlot, String room) {
