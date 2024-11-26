@@ -1,22 +1,21 @@
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.sql.*;
 
 public class Login implements ActionListener {
     private static JLabel idNumLabel, passLabel;
     private static JTextField idNum;
     private static JPasswordField password;
     private static JButton login;
-    private UserDatabase userDatabase;  
+    private static JFrame frame;
 
-    public Login(UserDatabase userDatabase) {
-        this.userDatabase = userDatabase;
-    }
+    public Login() {}
 
     public void actionPerformed(ActionEvent e) {
         String enteredId = idNum.getText();
         String enteredPassword = new String(password.getPassword());
-        
+
         // Validate if fields are empty
         if (enteredId.equals("") || enteredPassword.equals("")) {
             if (enteredId.equals("") && enteredPassword.equals("")) {
@@ -27,32 +26,34 @@ public class Login implements ActionListener {
                 JOptionPane.showMessageDialog(null, "Password field is empty. Please enter a password and try again!");
             }
         } else {
-            // Check if the user exists in the ArrayList of non-approved or approved users
-            boolean userFound = false;
-            for (SignUpModel user : userDatabase.getProgramAdminAcct()) {
-                if (user.getIdNumber().equals(enteredId) && user.getPassword().equals(enteredPassword) && !userFound) {
-                    userFound = true;
-					JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor((Component) e.getSource());
-					topFrame.dispose();
-					
-					ProgramAdminMVC.main(new String[]{});
+            // Query the database for the user using the DatabaseHelper class
+            try (Connection conn = DatabaseHelper.getConnection()) {
+                String sql = "SELECT * FROM nonApprovedUsers WHERE id_number = ? AND password = ?";
+                try (PreparedStatement pst = conn.prepareStatement(sql)) {
+                    pst.setString(1, enteredId);
+                    pst.setString(2, enteredPassword);
+
+                    ResultSet rs = pst.executeQuery();
+                    if (rs.next()) {
+                        // If user found, log them in
+                        JOptionPane.showMessageDialog(null, "You are now logged in.");
+                        frame.dispose(); // Close the login window
+                        // Additional login actions can be added here based on the user role, etc.
+                    } else {
+                        // If no user found with matching credentials
+                        JOptionPane.showMessageDialog(null, "Invalid ID or password. Please try again.");
+                    }
                 }
-            }
-            
-            // Add checks for other account types as needed
-            if (!userFound) {
-                JOptionPane.showMessageDialog(null, "Invalid ID or password. Please try again.");
+            } catch (SQLException ex) {
+                // Handle SQL exception if connection fails
+                JOptionPane.showMessageDialog(null, "Error connecting to database: " + ex.getMessage());
             }
         }
     }
 
     public static void main(String[] args) {
-        UserDatabase userDatabase = new UserDatabase();
-        
-        userDatabase.addUser(new SignUpModel("AAlvarez", "12345678", "password123", "Program Admin"));
-
-        // Create the main frame for login window
-        JFrame frame = new JFrame("Login");
+        // Create the main frame for the login window
+        frame = new JFrame("Login");
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         frame.setSize(500, 300);
         frame.setLocation(430, 100);
@@ -94,7 +95,7 @@ public class Login implements ActionListener {
 
         // Button to finalize login
         login = new JButton("Login");
-        login.addActionListener(new Login(userDatabase));  // Attach the Login listener with UserManager
+        login.addActionListener(new Login());  // Attach the Login listener
         panel.add(login, gbc);
 
         // Make the frame visible
