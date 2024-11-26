@@ -1,5 +1,10 @@
 import java.awt.*;
 import java.awt.event.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -8,28 +13,39 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
 public class UniversityRoomBooking {
-    private static LocalDate startDate = null;
-    private static LocalDate endDate = null;
-    private static ArrayList<RoomBooking> bookedRooms = new ArrayList<>(); // To store all booked rooms
+    private static LocalDate selectedDate = null; // Single selected date
+    private static ArrayList<RoomBooking> bookedRooms = new ArrayList<>();
 
     public static void main(String[] args) {
-        // Create the main frame
-        JFrame frame = new JFrame("Calendar with Date Range Selection");
+        DatabaseHelper.initializeDatabase(); // Ensure the database is set up
+        openCalendar(LocalDate.now().getMonthValue());
+    }
+    
+    private static void openCalendar(int initialMonth) {
+        JFrame frame = new JFrame("Calendar - Single Date Selection");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(600, 500);
         frame.setLayout(new BorderLayout());
 
-        // Get the current date
-        LocalDate currentDate = LocalDate.now();
-        int currentYear = currentDate.getYear();
-        int currentMonth = currentDate.getMonthValue();
+        int currentYear = LocalDate.now().getYear();
 
-        // Create a label for the month and year
-        JLabel monthYearLabel = new JLabel(currentDate.getMonth() + " " + currentYear, SwingConstants.CENTER);
+        // Create the month dropdown and label
+        String[] months = {
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        };
+        JComboBox<String> monthDropdown = new JComboBox<>(months);
+        monthDropdown.setSelectedIndex(initialMonth - 1); // Default month
+
+        JLabel monthYearLabel = new JLabel("", SwingConstants.CENTER);
         monthYearLabel.setFont(new Font("Arial", Font.BOLD, 20));
-        frame.add(monthYearLabel, BorderLayout.NORTH);
 
-        // Create a table model that prevents editing
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.add(monthDropdown, BorderLayout.WEST);
+        topPanel.add(monthYearLabel, BorderLayout.CENTER);
+        frame.add(topPanel, BorderLayout.NORTH);
+
+        // Create a table model and calendar table
         String[] columns = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
         DefaultTableModel tableModel = new DefaultTableModel(columns, 0) {
             @Override
@@ -37,59 +53,59 @@ public class UniversityRoomBooking {
                 return false; // Prevent cell editing
             }
         };
-
         JTable calendarTable = new JTable(tableModel);
 
-        // Fill the calendar with days
-        YearMonth yearMonth = YearMonth.of(currentYear, currentMonth);
-        int daysInMonth = yearMonth.lengthOfMonth();
-        LocalDate firstDayOfMonth = LocalDate.of(currentYear, currentMonth, 1);
-        int startDay = firstDayOfMonth.getDayOfWeek().getValue(); // 1 = Monday, 7 = Sunday
+        // Update the calendar for the selected month
+        Runnable updateCalendar = () -> {
+            int selectedMonth = monthDropdown.getSelectedIndex() + 1;
+            tableModel.setRowCount(0); // Clear the table
+            YearMonth yearMonth = YearMonth.of(currentYear, selectedMonth);
+            int daysInMonth = yearMonth.lengthOfMonth();
+            LocalDate firstDayOfMonth = LocalDate.of(currentYear, selectedMonth, 1);
+            int startDay = firstDayOfMonth.getDayOfWeek().getValue() % 7; // Adjust Sunday as the first column
 
-        // Adjust startDay to match Sunday as the first column
-        startDay = (startDay % 7);
-
-        // Fill the table with days
-        Object[] week = new Object[7];
-        for (int i = 0; i < startDay; i++) {
-            week[i] = ""; // Empty cells before the first day
-        }
-        for (int day = 1; day <= daysInMonth; day++) {
-            week[startDay++] = day;
-            if (startDay == 7) {
-                tableModel.addRow(week);
-                week = new Object[7];
-                startDay = 0;
+            Object[] week = new Object[7];
+            for (int i = 0; i < startDay; i++) {
+                week[i] = ""; // Empty cells before the first day
             }
-        }
-        if (startDay != 0) {
-            tableModel.addRow(week); // Add the remaining days
-        }
+            for (int day = 1; day <= daysInMonth; day++) {
+                week[startDay++] = day;
+                if (startDay == 7) {
+                    tableModel.addRow(week);
+                    week = new Object[7];
+                    startDay = 0;
+                }
+            }
+            if (startDay != 0) {
+                tableModel.addRow(week); // Add remaining days
+            }
 
-        // Add a custom cell renderer to highlight the selected timeframe
+            monthYearLabel.setText(yearMonth.getMonth() + " " + currentYear);
+        };
+
+        // Highlight the selected date
         calendarTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
             @Override
-            public Component getTableCellRendererComponent(JTable table, Object value,
-                                                           boolean isSelected, boolean hasFocus,
-                                                           int row, int column) {
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                c.setBackground(Color.WHITE); // Reset background
 
-                // Reset background
-                c.setBackground(Color.WHITE);
-
-                if (value != null && !value.toString().isEmpty() && startDate != null && endDate != null) {
+                if (value != null && !value.toString().isEmpty() && selectedDate != null) {
                     int day = Integer.parseInt(value.toString());
-                    LocalDate currentCellDate = LocalDate.of(currentYear, currentMonth, day);
+                    int selectedMonth = monthDropdown.getSelectedIndex() + 1;
+                    LocalDate cellDate = LocalDate.of(currentYear, selectedMonth, day);
 
-                    if (!currentCellDate.isBefore(startDate) && !currentCellDate.isAfter(endDate)) {
-                        // Highlight cells within the selected timeframe
-                        c.setBackground(Color.CYAN);
+                    if (cellDate.equals(selectedDate)) {
+                        c.setBackground(Color.CYAN); // Highlight the selected date
                     }
                 }
 
                 return c;
             }
         });
+
+        // Add a listener to the dropdown to update the calendar
+        monthDropdown.addActionListener(e -> updateCalendar.run());
 
         // Add the calendar to the frame
         JScrollPane scrollPane = new JScrollPane(calendarTable);
@@ -100,86 +116,62 @@ public class UniversityRoomBooking {
         bottomPanel.setLayout(new BoxLayout(bottomPanel, BoxLayout.Y_AXIS));
         frame.add(bottomPanel, BorderLayout.SOUTH);
 
-        // Add a label to show the selected range
-        JLabel rangeLabel = new JLabel("Select a start date and an end date.");
-        rangeLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        bottomPanel.add(rangeLabel);
+        JLabel dateLabel = new JLabel("Select a date.", SwingConstants.CENTER);
+        dateLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        bottomPanel.add(dateLabel);
 
-        // Create a button to confirm the timeframe
-        JButton confirmButton = new JButton("Confirm Timeframe");
-        confirmButton.setEnabled(false); // Initially disabled
+        JButton confirmButton = new JButton("Confirm Date");
+        confirmButton.setEnabled(false);
         confirmButton.addActionListener(e -> {
-            if (startDate != null && endDate != null) {
-                openTimeSlotMenu(startDate, endDate);
+            if (selectedDate != null) {
+                frame.dispose(); // Close calendar
+                openTimeSlotMenu(selectedDate); // Proceed to time slots
             }
         });
 
-        // Create a button to clear the timeframe
-        JButton clearButton = new JButton("Clear Timeframe");
-        clearButton.setEnabled(false); // Initially disabled
+        JButton clearButton = new JButton("Clear Date");
+        clearButton.setEnabled(false);
         clearButton.addActionListener(e -> {
-            startDate = null;
-            endDate = null;
-            rangeLabel.setText("Select a start date and an end date.");
-            calendarTable.repaint(); // Repaint the calendar to clear highlights
+            selectedDate = null;
+            dateLabel.setText("Select a date.");
+            calendarTable.repaint(); // Repaint calendar to clear highlighting
             confirmButton.setEnabled(false);
             clearButton.setEnabled(false);
         });
 
-        // Add buttons to the panel
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new FlowLayout());
+        JPanel buttonPanel = new JPanel(new FlowLayout());
         buttonPanel.add(confirmButton);
         buttonPanel.add(clearButton);
         bottomPanel.add(buttonPanel);
 
         // Add a mouse listener to the table for date selection
-        calendarTable.addMouseListener(new java.awt.event.MouseAdapter() {
+        calendarTable.addMouseListener(new MouseAdapter() {
             @Override
-            public void mouseClicked(java.awt.event.MouseEvent e) {
+            public void mouseClicked(MouseEvent e) {
                 int row = calendarTable.rowAtPoint(e.getPoint());
                 int col = calendarTable.columnAtPoint(e.getPoint());
                 Object value = calendarTable.getValueAt(row, col);
 
                 if (value != null && !value.toString().isEmpty()) {
                     int day = Integer.parseInt(value.toString());
-                    LocalDate selectedDate = LocalDate.of(currentYear, currentMonth, day);
-
-                    if (startDate == null) {
-                        startDate = selectedDate;
-                        rangeLabel.setText("Start Date: " + startDate);
-                    } else if (endDate == null) {
-                        endDate = selectedDate;
-
-                        if (endDate.isBefore(startDate)) {
-                            // Swap dates if end date is earlier
-                            LocalDate temp = startDate;
-                            startDate = endDate;
-                            endDate = temp;
-                        }
-
-                        rangeLabel.setText("Start Date: " + startDate + " | End Date: " + endDate);
-                        calendarTable.repaint(); // Repaint to apply highlighting
-                        confirmButton.setEnabled(true);
-                        clearButton.setEnabled(true);
-                    } else {
-                        // Reset if both dates are already set
-                        startDate = selectedDate;
-                        endDate = null;
-                        rangeLabel.setText("Start Date: " + startDate);
-                        calendarTable.repaint(); // Repaint to clear highlighting
-                        confirmButton.setEnabled(false);
-                        clearButton.setEnabled(false);
-                    }
+                    int selectedMonth = monthDropdown.getSelectedIndex() + 1;
+                    selectedDate = LocalDate.of(currentYear, selectedMonth, day);
+                    dateLabel.setText("Selected Date: " + selectedDate);
+                    calendarTable.repaint(); // Highlight selected date
+                    confirmButton.setEnabled(true);
+                    clearButton.setEnabled(true);
                 }
             }
         });
 
-        // Display the frame
-        frame.setVisible(true);
+        updateCalendar.run(); // Populate calendar initially
+        frame.setVisible(true); // Show frame
     }
+    
+    // Other methods (time slots, room selection, etc.) remain unchanged
 
-    private static void openTimeSlotMenu(LocalDate startDate, LocalDate endDate) {
+
+    private static void openTimeSlotMenu(LocalDate selectedDate) {
         // Create a new frame for time slots
         JFrame timeSlotFrame = new JFrame("Time Slots");
         timeSlotFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -187,7 +179,7 @@ public class UniversityRoomBooking {
         timeSlotFrame.setLayout(new BorderLayout());
 
         // Add a label showing the selected timeframe
-        JLabel timeframeLabel = new JLabel("Timeframe: " + startDate + " to " + endDate);
+        JLabel timeframeLabel = new JLabel("Date: " + selectedDate);
         timeframeLabel.setFont(new Font("Arial", Font.BOLD, 14));
         timeframeLabel.setHorizontalAlignment(SwingConstants.CENTER);
         timeSlotFrame.add(timeframeLabel, BorderLayout.NORTH);
@@ -197,13 +189,12 @@ public class UniversityRoomBooking {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 
         // Define time slot generation logic
-        int startHour = 6; // Start at 6:00 AM
-        int endHour = 22; // End at 10:00 PM
+        int endHour = 23; // End at 10:00 PM
         int intervalMinutes = 90; // Each slot is 1 hour 30 minutes
         int gapMinutes = 15; // 15 minutes between slots
 
-        int currentHour = startHour;
-        int currentMinute = 0;
+        int currentHour = 7;
+        int currentMinute = 30;
 
         while (currentHour < endHour || (currentHour == endHour && currentMinute == 0)) {
             // Calculate the start and end times for the slot
@@ -215,7 +206,7 @@ public class UniversityRoomBooking {
 
             // Create a button for the time slot
             JButton timeSlotButton = new JButton(startTime + " - " + endTime);
-            timeSlotButton.addActionListener(e -> openRoomSelectionMenu(startDate, endDate, timeSlotButton.getText()));
+            timeSlotButton.addActionListener(e -> openRoomSelectionMenu(selectedDate, timeSlotButton.getText()));
             panel.add(timeSlotButton);
 
             // Move to the next time slot (add interval + gap)
@@ -230,117 +221,136 @@ public class UniversityRoomBooking {
         timeSlotFrame.setVisible(true);
     }
 
-    private static void openRoomSelectionMenu(LocalDate startDate, LocalDate endDate, String timeSlot) {
-        // Create a new frame for room selection
+    private static void openRoomSelectionMenu(LocalDate selectedDate, String timeSlot) {
         JFrame roomFrame = new JFrame("Room Selection");
         roomFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        roomFrame.setSize(400, 300);
+        roomFrame.setSize(400, 200);
+        roomFrame.setLayout(new BorderLayout());
     
-        JLabel label = new JLabel("Timeframe: " + startDate + " to " + endDate + " | Slot: " + timeSlot);
+        // Label showing the selected date and time slot
+        JLabel label = new JLabel("Date: " + selectedDate + " | Slot: " + timeSlot);
         label.setFont(new Font("Arial", Font.BOLD, 14));
         label.setHorizontalAlignment(SwingConstants.CENTER);
     
-        // Create buttons for classrooms and laboratories
-        JButton classroomsButton = new JButton("Classrooms");
-        classroomsButton.addActionListener(e -> showRooms(roomFrame, "Classrooms", new String[]{"MRE 111/112", "MRE 113/114", "MRE 201"}, startDate, endDate, timeSlot));
+        // Dropdown to select room type
+        JComboBox<String> roomTypeDropdown = new JComboBox<>(new String[]{"Classrooms", "Laboratories"});
+        roomTypeDropdown.setFont(new Font("Arial", Font.PLAIN, 12));
     
-        JButton laboratoriesButton = new JButton("Laboratories");
-        laboratoriesButton.addActionListener(e -> showRooms(roomFrame, "Laboratories", new String[]{"MRELABA", "MRE309", "MRE310"}, startDate, endDate, timeSlot));
+        // Button to proceed with room selection
+        JButton proceedButton = new JButton("Select Room Type");
+        proceedButton.addActionListener(e -> {
+            String selectedType = (String) roomTypeDropdown.getSelectedItem();
+            String dbType = selectedType.equalsIgnoreCase("Classrooms") ? "classroom" : "laboratory"; // Map dropdown value
+            showRooms(roomFrame, dbType, selectedDate, timeSlot); // Fetch and display rooms
+        });
     
-        JPanel buttonPanel = new JPanel(new FlowLayout());
-        buttonPanel.add(classroomsButton);
-        buttonPanel.add(laboratoriesButton);
+        // Panel to hold dropdown and button
+        JPanel panel = new JPanel(new FlowLayout());
+        panel.add(roomTypeDropdown);
+        panel.add(proceedButton);
     
-        roomFrame.setLayout(new BorderLayout());
+        // Add components to the frame
         roomFrame.add(label, BorderLayout.NORTH);
-        roomFrame.add(buttonPanel, BorderLayout.CENTER);
+        roomFrame.add(panel, BorderLayout.CENTER);
         roomFrame.setVisible(true);
     }
     
-    private static void showRooms(JFrame parentFrame, String type, String[] rooms, LocalDate startDate, LocalDate endDate, String timeSlot) {
-        parentFrame.dispose(); // Use this to close the previous frame
-
-        // Create the frame for room selection
-        JFrame roomListFrame = new JFrame(type + " List");
-        roomListFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        roomListFrame.setSize(400, 300);
-
-        // Use a JPanel with GridLayout for room layout
-        JPanel roomPanel = new JPanel();
-        roomPanel.setLayout(new GridLayout(0, 2, 10, 10)); // 2 columns, 10px gap between items
-
-        // Loop through rooms to create a panel for each room
-        for (String room : rooms) {
-            JPanel roomPanelItem = new JPanel();
-            roomPanelItem.setPreferredSize(new Dimension(150, 100)); // Room panel size
-
-            // Check if the room is booked
-            boolean isBookedForSlot = isRoomBooked(startDate, timeSlot, room);
+    
+    private static ArrayList<String> fetchRoomsFromDatabase(String category) {
+        ArrayList<String> rooms = new ArrayList<>();
+        String fetchQuery = "SELECT room_name FROM rooms WHERE LOWER(category) = ?";
+        
+        try (Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/room_db", "root", "cbinfom");
+             PreparedStatement pstmt = conn.prepareStatement(fetchQuery)) {
             
-            if (isBookedForSlot) {
-                roomPanelItem.setBackground(Color.RED); // Room already booked (red)
-            } else {
-                roomPanelItem.setBackground(Color.GREEN); // Available room (green)
+            pstmt.setString(1, category.toLowerCase()); // Ensure case-insensitivity
+            ResultSet rs = pstmt.executeQuery();
+            
+            while (rs.next()) {
+                rooms.add(rs.getString("room_name"));
             }
-
-            // Create label for the room
-            JLabel roomLabel = new JLabel(room, JLabel.CENTER);
-            roomLabel.setForeground(Color.WHITE);
-            roomLabel.setPreferredSize(new Dimension(140, 90)); // Label size to fit within the panel
-
-            // Add label to the room panel
-            roomPanelItem.add(roomLabel);
-
-            // Add action when room is clicked
-            roomPanelItem.addMouseListener(new MouseAdapter() {
-                @Override
-                public void mouseClicked(MouseEvent e) {
-                    // Only change color if booking is not done
-                    if (!isBookedForSlot) {
-                        // Toggle room booking status (Green to Red and vice versa)
-                        if (roomPanelItem.getBackground() == Color.GREEN) {
-                            roomPanelItem.setBackground(Color.RED); // Book the room (red)
-                            roomLabel.setText(roomLabel.getText() + " (Booked)"); // Update label text
-
-                            // Add this booking to the bookedRooms list
-                            bookedRooms.add(new RoomBooking(startDate, timeSlot, room, true));
-                        } else {
-                            roomPanelItem.setBackground(Color.GREEN); // Unbook the room (green)
-                            roomLabel.setText(roomLabel.getText().replace(" (Booked)", "")); // Update label text
-
-                            // Remove the booking from the list
-                            removeBooking(startDate, timeSlot, room);
-                        }
-                    } else {
-                        JOptionPane.showMessageDialog(parentFrame, "Booking Finalized");
-                    }
-                }
-            });
-
-            // Add the room panel item to the main room panel
-            roomPanel.add(roomPanelItem);
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
+    
 
-        // Create a panel for the button at the bottom
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
-
-        // "Done Booking" button
-        JButton doneButton = new JButton("Done Booking");
-        doneButton.addActionListener(e -> {
-            JOptionPane.showMessageDialog(parentFrame, "Booking finished.");
-            doneButton.setEnabled(false); // Disable the button after pressing
-        });
-
-        buttonPanel.add(doneButton);
-
-        // Add components to the frame
-        roomListFrame.add(roomPanel, BorderLayout.CENTER);
-        roomListFrame.add(buttonPanel, BorderLayout.SOUTH);
-
-        // Make the frame visible
-        roomListFrame.setVisible(true);
+        if (rooms.isEmpty()) {
+            System.out.println("No rooms found for category: " + category);
+        } else {
+            System.out.println("Rooms fetched for category '" + category + "': " + rooms);
+        }
+        
+        return rooms;
     }
+    
+    
+
+private static void showRooms(JFrame parentFrame, String type, LocalDate selectedDate, String timeSlot) {
+    parentFrame.dispose(); // Close the previous frame
+
+    ArrayList<String> rooms = fetchRoomsFromDatabase(type); // Fetch rooms dynamically
+
+    JFrame roomFrame = new JFrame(type + " Selection");
+    roomFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+    roomFrame.setSize(400, 200);
+    roomFrame.setLayout(new BorderLayout());
+
+    // Label showing selected date and time slot
+    JLabel label = new JLabel("Date: " + selectedDate + " | Slot: " + timeSlot);
+    label.setFont(new Font("Arial", Font.BOLD, 14));
+    label.setHorizontalAlignment(SwingConstants.CENTER);
+
+    // Dropdown for room selection
+    JComboBox<String> roomDropdown = new JComboBox<>();
+    for (String room : rooms) {
+        boolean isBooked = isRoomBooked(selectedDate, timeSlot, room);
+        roomDropdown.addItem(room + (isBooked ? " (Booked)" : ""));
+    }
+
+    // Book button
+    JButton bookButton = new JButton("Book Room");
+    bookButton.addActionListener(e -> {
+        String selectedRoom = (String) roomDropdown.getSelectedItem();
+        if (selectedRoom != null) {
+            if (selectedRoom.endsWith("(Booked)")) {
+                JOptionPane.showMessageDialog(roomFrame, "This room is already booked.");
+            } else {
+                // Extract room name from dropdown item
+                String roomName = selectedRoom.replace(" (Booked)", "");
+                bookedRooms.add(new RoomBooking(selectedDate, timeSlot, roomName, true));
+                JOptionPane.showMessageDialog(roomFrame, "Room " + roomName + " successfully booked!");
+                roomDropdown.removeItem(selectedRoom); // Remove or update the dropdown item
+                roomDropdown.addItem(roomName + " (Booked)");
+            }
+        }
+    });
+
+    // Done button to finish booking
+    JButton doneButton = new JButton("Done Booking");
+    doneButton.addActionListener(e -> {
+        if (!bookedRooms.isEmpty()) {
+            for (RoomBooking booking : bookedRooms) {
+                DatabaseHelper.insertBooking(booking.getDate(), booking.getTimeSlot(), booking.getRoom());
+            }
+            JOptionPane.showMessageDialog(roomFrame, "All bookings have been saved to the database.");
+        } else {
+            JOptionPane.showMessageDialog(roomFrame, "No bookings were made.");
+        }
+        roomFrame.dispose();
+    });
+
+    // Bottom panel for buttons
+    JPanel buttonPanel = new JPanel(new FlowLayout());
+    buttonPanel.add(bookButton);
+    buttonPanel.add(doneButton);
+
+    // Add components to the frame
+    roomFrame.add(label, BorderLayout.NORTH);
+    roomFrame.add(roomDropdown, BorderLayout.CENTER);
+    roomFrame.add(buttonPanel, BorderLayout.SOUTH);
+    roomFrame.setVisible(true);
+}
+
 
     // Method to check if a room is booked for a given date and time slot
     private static boolean isRoomBooked(LocalDate date, String timeSlot, String room) {
