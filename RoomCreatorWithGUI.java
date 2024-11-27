@@ -5,6 +5,10 @@ import java.awt.event.ActionListener;
 import java.sql.*;
 
 public class RoomCreatorWithGUI {
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/room_db";
+    private static final String DB_USERNAME = "root"; // Your MySQL username
+    private static final String DB_PASSWORD = "cbinfom"; // Your MySQL password
+
     public static void main(String[] args) {
         SwingUtilities.invokeLater(RoomCreatorWithGUI::createAndShowGUI);
     }
@@ -70,7 +74,7 @@ public class RoomCreatorWithGUI {
                 try {
                     int maxCapacity = Integer.parseInt(maxCapacityText);
 
-                    // Save to database using DatabaseHelper class
+                    // Save to database
                     if (saveRoomToDatabase(category, roomName, maxCapacity, tags)) {
                         statusLabel.setText("Room created successfully!");
                         clearFields(roomNameField, maxCapacityField, tagsField);
@@ -87,11 +91,10 @@ public class RoomCreatorWithGUI {
         frame.setVisible(true);
     }
 
-    // Modify this method to use DatabaseHelper for getting the connection
     private static boolean saveRoomToDatabase(String category, String roomName, int maxCapacity, String tags) {
         String insertQuery = "INSERT INTO rooms (category, room_name, max_capacity, tags) VALUES (?, ?, ?, ?)";
 
-        try (Connection conn = DatabaseHelper.getConnection();  // Use DatabaseHelper to get the connection
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USERNAME, DB_PASSWORD);
              PreparedStatement pstmt = conn.prepareStatement(insertQuery)) {
 
             pstmt.setString(1, category);
