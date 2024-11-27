@@ -1,10 +1,6 @@
 import java.awt.*;
 import java.awt.event.*;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -16,12 +12,12 @@ public class UniversityRoomBooking {
     private static LocalDate selectedDate = null; // Single selected date
     private static ArrayList<RoomBooking> bookedRooms = new ArrayList<>();
 
-    public static void main(String[] args) {
-        DatabaseHelper.initializeDatabase(); // Ensure the database is set up
-        openCalendar(LocalDate.now().getMonthValue());
+    public static void roomBookMain(int professorId) {
+        DatabaseHelper.initializeDatabase();
+        openCalendar(LocalDate.now().getMonthValue(), professorId);
     }
     
-    private static void openCalendar(int initialMonth) {
+    private static void openCalendar(int initialMonth, int professorId) {
         JFrame frame = new JFrame("Calendar - Single Date Selection");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(600, 500);
@@ -125,7 +121,7 @@ public class UniversityRoomBooking {
         confirmButton.addActionListener(e -> {
             if (selectedDate != null) {
                 frame.dispose(); // Close calendar
-                openTimeSlotMenu(selectedDate); // Proceed to time slots
+                openTimeSlotMenu(selectedDate, professorId); // Pass professorId to time slot menu
             }
         });
 
@@ -167,11 +163,8 @@ public class UniversityRoomBooking {
         updateCalendar.run(); // Populate calendar initially
         frame.setVisible(true); // Show frame
     }
-    
-    // Other methods (time slots, room selection, etc.) remain unchanged
 
-
-    private static void openTimeSlotMenu(LocalDate selectedDate) {
+    private static void openTimeSlotMenu(LocalDate selectedDate, int professorId) {
         // Create a new frame for time slots
         JFrame timeSlotFrame = new JFrame("Time Slots");
         timeSlotFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -204,181 +197,69 @@ public class UniversityRoomBooking {
             String startTime = String.format("%02d:%02d", currentHour, currentMinute);
             String endTime = String.format("%02d:%02d", endSlotHour, endSlotMinute);
 
-            // Create a button for the time slot
-            JButton timeSlotButton = new JButton(startTime + " - " + endTime);
-            timeSlotButton.addActionListener(e -> openRoomSelectionMenu(selectedDate, timeSlotButton.getText()));
+            String timeSlot = startTime + " - " + endTime;
+
+            // Create button for the time slot
+            JButton timeSlotButton = new JButton(timeSlot);
+            timeSlotButton.addActionListener(e -> {
+                openRoomBooking(timeSlot, professorId, selectedDate);
+            });
             panel.add(timeSlotButton);
 
-            // Move to the next time slot (add interval + gap)
-            int totalMinutes = currentMinute + intervalMinutes + gapMinutes;
-            currentHour += totalMinutes / 60;
-            currentMinute = totalMinutes % 60;
+            // Update current time for next slot
+            currentMinute += intervalMinutes + gapMinutes;
+            if (currentMinute >= 60) {
+                currentMinute -= 60;
+                currentHour++;
+            }
         }
 
-        // Add the panel to a scroll pane
-        JScrollPane scrollPane = new JScrollPane(panel);
-        timeSlotFrame.add(scrollPane, BorderLayout.CENTER);
-        timeSlotFrame.setVisible(true);
+        // Add the panel to a scroll pane for visibility
+        timeSlotFrame.add(new JScrollPane(panel), BorderLayout.CENTER);
+        timeSlotFrame.setVisible(true); // Show the time slots window
     }
 
-    private static void openRoomSelectionMenu(LocalDate selectedDate, String timeSlot) {
-        JFrame roomFrame = new JFrame("Room Selection");
+    private static void openRoomBooking(String timeSlot, int professorId, LocalDate selectedDate) {
+        // Fetch available room names from the database
+        ArrayList<String> roomNames = DatabaseHelper.getRoomNames();
+        
+        // Create a frame for room booking
+        JFrame roomFrame = new JFrame("Select a Room");
+        roomFrame.setSize(400, 300);
         roomFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        roomFrame.setSize(400, 200);
-        roomFrame.setLayout(new BorderLayout());
-    
-        // Label showing the selected date and time slot
-        JLabel label = new JLabel("Date: " + selectedDate + " | Slot: " + timeSlot);
-        label.setFont(new Font("Arial", Font.BOLD, 14));
-        label.setHorizontalAlignment(SwingConstants.CENTER);
-    
-        // Dropdown to select room type
-        JComboBox<String> roomTypeDropdown = new JComboBox<>(new String[]{"Classrooms", "Laboratories"});
-        roomTypeDropdown.setFont(new Font("Arial", Font.PLAIN, 12));
-    
-        // Button to proceed with room selection
-        JButton proceedButton = new JButton("Select Room Type");
-        proceedButton.addActionListener(e -> {
-            String selectedType = (String) roomTypeDropdown.getSelectedItem();
-            String dbType = selectedType.equalsIgnoreCase("Classrooms") ? "classroom" : "laboratory"; // Map dropdown value
-            showRooms(roomFrame, dbType, selectedDate, timeSlot); // Fetch and display rooms
-        });
-    
-        // Panel to hold dropdown and button
-        JPanel panel = new JPanel(new FlowLayout());
-        panel.add(roomTypeDropdown);
-        panel.add(proceedButton);
-    
-        // Add components to the frame
-        roomFrame.add(label, BorderLayout.NORTH);
-        roomFrame.add(panel, BorderLayout.CENTER);
-        roomFrame.setVisible(true);
-    }
-    
-    
-    private static ArrayList<String> fetchRoomsFromDatabase(String category) {
-        ArrayList<String> rooms = new ArrayList<>();
-        String fetchQuery = "SELECT room_name FROM rooms WHERE LOWER(category) = ?";
-        
-        try (Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/room_db", "root", "cbinfom");
-             PreparedStatement pstmt = conn.prepareStatement(fetchQuery)) {
-            
-            pstmt.setString(1, category.toLowerCase()); // Ensure case-insensitivity
-            ResultSet rs = pstmt.executeQuery();
-            
-            while (rs.next()) {
-                rooms.add(rs.getString("room_name"));
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
+
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+
+        // Display buttons for each room
+        for (String roomName : roomNames) {
+            JButton roomButton = new JButton(roomName);
+            roomButton.addActionListener(e -> {
+                DatabaseHelper.insertBooking(professorId, selectedDate, timeSlot, roomName);
+                JOptionPane.showMessageDialog(roomFrame, "Room booked successfully!");
+                roomFrame.dispose();
+            });
+            panel.add(roomButton);
         }
-    
 
-        if (rooms.isEmpty()) {
-            System.out.println("No rooms found for category: " + category);
-        } else {
-            System.out.println("Rooms fetched for category '" + category + "': " + rooms);
-        }
-        
-        return rooms;
-    }
-    
-    
-
-private static void showRooms(JFrame parentFrame, String type, LocalDate selectedDate, String timeSlot) {
-    parentFrame.dispose(); // Close the previous frame
-
-    ArrayList<String> rooms = fetchRoomsFromDatabase(type); // Fetch rooms dynamically
-
-    JFrame roomFrame = new JFrame(type + " Selection");
-    roomFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-    roomFrame.setSize(400, 200);
-    roomFrame.setLayout(new BorderLayout());
-
-    // Label showing selected date and time slot
-    JLabel label = new JLabel("Date: " + selectedDate + " | Slot: " + timeSlot);
-    label.setFont(new Font("Arial", Font.BOLD, 14));
-    label.setHorizontalAlignment(SwingConstants.CENTER);
-
-    // Dropdown for room selection
-    JComboBox<String> roomDropdown = new JComboBox<>();
-    for (String room : rooms) {
-        boolean isBooked = isRoomBooked(selectedDate, timeSlot, room);
-        roomDropdown.addItem(room + (isBooked ? " (Booked)" : ""));
+        roomFrame.add(new JScrollPane(panel));
+        roomFrame.setVisible(true); // Show the room booking frame
     }
 
-    // Book button
-    JButton bookButton = new JButton("Book Room");
-    bookButton.addActionListener(e -> {
-        String selectedRoom = (String) roomDropdown.getSelectedItem();
-        if (selectedRoom != null) {
-            if (selectedRoom.endsWith("(Booked)")) {
-                JOptionPane.showMessageDialog(roomFrame, "This room is already booked.");
-            } else {
-                // Extract room name from dropdown item
-                String roomName = selectedRoom.replace(" (Booked)", "");
-                bookedRooms.add(new RoomBooking(selectedDate, timeSlot, roomName, true));
-                JOptionPane.showMessageDialog(roomFrame, "Room " + roomName + " successfully booked!");
-                roomDropdown.removeItem(selectedRoom); // Remove or update the dropdown item
-                roomDropdown.addItem(roomName + " (Booked)");
-            }
-        }
-    });
-
-    // Done button to finish booking
-    JButton doneButton = new JButton("Done Booking");
-    doneButton.addActionListener(e -> {
-        if (!bookedRooms.isEmpty()) {
-            for (RoomBooking booking : bookedRooms) {
-                DatabaseHelper.insertBooking(booking.getDate(), booking.getTimeSlot(), booking.getRoom());
-            }
-            JOptionPane.showMessageDialog(roomFrame, "All bookings have been saved to the database.");
-        } else {
-            JOptionPane.showMessageDialog(roomFrame, "No bookings were made.");
-        }
-        roomFrame.dispose();
-    });
-
-    // Bottom panel for buttons
-    JPanel buttonPanel = new JPanel(new FlowLayout());
-    buttonPanel.add(bookButton);
-    buttonPanel.add(doneButton);
-
-    // Add components to the frame
-    roomFrame.add(label, BorderLayout.NORTH);
-    roomFrame.add(roomDropdown, BorderLayout.CENTER);
-    roomFrame.add(buttonPanel, BorderLayout.SOUTH);
-    roomFrame.setVisible(true);
-}
-
-
-    // Method to check if a room is booked for a given date and time slot
-    private static boolean isRoomBooked(LocalDate date, String timeSlot, String room) {
-        for (RoomBooking booking : bookedRooms) {
-            if (booking.getDate().equals(date) && booking.getTimeSlot().equals(timeSlot) && booking.getRoom().equals(room)) {
-                return booking.isBooked();
-            }
-        }
-        return false;
-    }
-
-    // Method to remove booking when unbooking
-    private static void removeBooking(LocalDate date, String timeSlot, String room) {
-        bookedRooms.removeIf(booking -> booking.getDate().equals(date) && booking.getTimeSlot().equals(timeSlot) && booking.getRoom().equals(room));
-    }
-
-    // Method for the arraylist
+    // RoomBooking Class
     public static class RoomBooking {
         private LocalDate date;
         private String timeSlot;
         private String room;
         private boolean booked;
+        private int professorId;
 
-        public RoomBooking(LocalDate date, String timeSlot, String room, boolean booked) {
+        public RoomBooking(LocalDate date, String timeSlot, String room, boolean booked, int professorId) {
             this.date = date;
             this.timeSlot = timeSlot;
             this.room = room;
             this.booked = booked;
+            this.professorId = professorId;
         }
 
         public LocalDate getDate() {
@@ -400,5 +281,66 @@ private static void showRooms(JFrame parentFrame, String type, LocalDate selecte
         public void setBooked(boolean booked) {
             this.booked = booked;
         }
+
+        public int getProfessorId() {
+            return professorId;
+        }
+    }
+
+    // DatabaseHelper class using your provided code
+    public static class DatabaseHelper {
+        // JDBC connection URL to the ProgMP database
+        private static final String DB_URL = "jdbc:mysql://127.0.0.1:3306/ProgMP?useSSL=false";
+        private static final String DB_USER = "root";  // MySQL username
+        private static final String DB_PASSWORD = "Vianca";  // MySQL password
+
+        // Method to get a connection to the database
+        public static Connection getConnection() throws SQLException {
+            return DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+        }
+
+        // Method to initialize the database
+        public static void initializeDatabase() {
+            try (Connection connection = getConnection()) {
+                // Perform any database initialization here if needed
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+
+        public static ArrayList<String> getRoomNames() {
+            ArrayList<String> roomNames = new ArrayList<>();
+            String query = "SELECT room_name FROM rooms";  // Assuming table name is 'rooms'
+
+            try (Connection connection = getConnection();
+                 Statement stmt = connection.createStatement();
+                 ResultSet rs = stmt.executeQuery(query)) {
+
+                while (rs.next()) {
+                    roomNames.add(rs.getString("room_name"));
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
+            return roomNames;
+        }
+
+        public static void insertBooking(int professorId, LocalDate date, String timeSlot, String roomName) {
+			String query = "INSERT INTO bookings (professor_id, booking_date, time_slot, room_name) VALUES (?, ?, ?, ?)";
+
+			try (Connection connection = getConnection();
+				 PreparedStatement stmt = connection.prepareStatement(query)) {
+
+				stmt.setInt(1, professorId);  // Set professorId as the first parameter
+				stmt.setDate(2, java.sql.Date.valueOf(date));  // Set booking date
+				stmt.setString(3, timeSlot);  // Set time slot
+				stmt.setString(4, roomName);  // Set room name
+
+				stmt.executeUpdate();  // Execute the insert statement
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
     }
 }

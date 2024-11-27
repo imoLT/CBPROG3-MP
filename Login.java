@@ -10,8 +10,6 @@ public class Login implements ActionListener {
     private static JButton login;
     private static JFrame frame;
 
-    public Login() {}
-
     public void actionPerformed(ActionEvent e) {
         String enteredId = idNum.getText();
         String enteredPassword = new String(password.getPassword());
@@ -28,24 +26,47 @@ public class Login implements ActionListener {
         } else {
             // Query the database for the user using the DatabaseHelper class
             try (Connection conn = DatabaseHelper.getConnection()) {
-                String sql = "SELECT * FROM nonApprovedUsers WHERE id_number = ? AND password = ?";
+                // First check in the 'users' table for login credentials
+                String sql = "SELECT * FROM users WHERE idnumber = ? AND password = ?";
                 try (PreparedStatement pst = conn.prepareStatement(sql)) {
                     pst.setString(1, enteredId);
                     pst.setString(2, enteredPassword);
 
                     ResultSet rs = pst.executeQuery();
                     if (rs.next()) {
-                        // If user found, log them in
-                        JOptionPane.showMessageDialog(null, "You are now logged in.");
-                        frame.dispose(); // Close the login window
-                        // Additional login actions can be added here based on the user role, etc.
+                        // If user found, check role
+                        String role = rs.getString("role");
+                        if (role.equals("Program Admin")) {
+                            // If the user is a Program Admin, open the Program Admin menu
+                            frame.dispose();
+                            ProgramAdmin.main(new String[0]); 
+                        } else if (role.equals("Professor")) {
+                            // If the user is a Professor, pass their ID to the Professor class
+                            frame.dispose();
+                            Professor professor = new Professor(Integer.parseInt(enteredId));
+                        } else {
+                            // Insert other roles later (ITS, Security)
+                            JOptionPane.showMessageDialog(null, "You are logged in!");
+                        }
                     } else {
-                        // If no user found with matching credentials
-                        JOptionPane.showMessageDialog(null, "Invalid ID or password. Please try again.");
+                        // If no user found in users table, check nonApprovedUsers table
+                        String nonApprovedSql = "SELECT * FROM nonApprovedUsers WHERE id_number = ? AND password = ?";
+                        try (PreparedStatement pstNonApproved = conn.prepareStatement(nonApprovedSql)) {
+                            pstNonApproved.setString(1, enteredId);
+                            pstNonApproved.setString(2, enteredPassword);
+
+                            ResultSet rsNonApproved = pstNonApproved.executeQuery();
+                            if (rsNonApproved.next()) {
+                                // If user found in non-approved users table, inform them that their account is still pending for approval
+                                JOptionPane.showMessageDialog(null, "Your account is still pending for approval! Please try again later.");
+                            } else {
+                                // User is not found in either tables
+                                JOptionPane.showMessageDialog(null, "Invalid ID or password. Please try again.");
+                            }
+                        }
                     }
                 }
             } catch (SQLException ex) {
-                // Handle SQL exception if connection fails
                 JOptionPane.showMessageDialog(null, "Error connecting to database: " + ex.getMessage());
             }
         }
@@ -93,9 +114,8 @@ public class Login implements ActionListener {
         // Move to the next row for the login button
         gbc.gridy = 2;
 
-        // Button to finalize login
         login = new JButton("Login");
-        login.addActionListener(new Login());  // Attach the Login listener
+        login.addActionListener(new Login());
         panel.add(login, gbc);
 
         // Make the frame visible

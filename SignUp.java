@@ -3,14 +3,15 @@ import java.awt.*;
 import java.awt.event.*;
 import java.sql.*;
 
-public class SignUp implements ActionListener {
+	public class SignUp implements ActionListener {
+	private static JFrame frame;
     private static JTextField idNumField;
     private static JPasswordField passwordField;
     private static JComboBox<String> roleBox;
     private static JButton finishButton;
 
     public static void main(String[] args) {
-        JFrame frame = new JFrame("Sign-Up");
+		frame = new JFrame("Sign-Up");
         JPanel panel = new JPanel(new GridBagLayout());
         frame.setSize(500, 500);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -60,35 +61,34 @@ public class SignUp implements ActionListener {
     }
 
     public boolean isInputValid() {
-        return !idNumField.getText().equals("") && 
+        return !idNumField.getText().equals("") &&
                passwordField.getPassword().length > 0 &&
                idNumField.getText().length() == 8 &&
                !roleBox.getSelectedItem().equals("Option");
     }
 
-    @Override
+    // ActionPerformed method without @Override annotation
     public void actionPerformed(ActionEvent e) {
-        char[] password = passwordField.getPassword(); 
+        char[] password = passwordField.getPassword();
 
         if (isInputValid()) {
-            System.out.println("Inputs are valid. Proceeding to insert into database...");  // Debug log
-            
+            System.out.println("Inputs are valid. Proceeding to insert into database...");
+
             try (Connection connection = DatabaseHelper.getConnection()) {
-                // SQL insert statement
                 String sql = "INSERT INTO nonApprovedUsers (id_number, password, role) VALUES (?, ?, ?)";
                 PreparedStatement statement = connection.prepareStatement(sql);
                 statement.setString(1, idNumField.getText());
                 statement.setString(2, new String(password));
                 statement.setString(3, (String) roleBox.getSelectedItem());
 
-                // Execute the insert statement
                 int rowsInserted = statement.executeUpdate();
-                System.out.println("Rows inserted: " + rowsInserted);  // Debug log
+                System.out.println("Rows inserted: " + rowsInserted);
                 
                 if (rowsInserted > 0) {
                     JOptionPane.showMessageDialog(null, "Thank you! Your account is being processed.", "Message", JOptionPane.INFORMATION_MESSAGE);
+					frame.dispose();
+					Start.main(new String[]{});
                 }
-
             } catch (SQLException ex) {
                 ex.printStackTrace();
                 JOptionPane.showMessageDialog(null, "Error connecting to database: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);

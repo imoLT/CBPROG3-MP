@@ -1,41 +1,35 @@
-public class User{
-	protected String username, idNum, password, questionAns;
-	protected int idNum, userType, questionNum;
-	 
-	public User(String username, int idNum, String password, int userType){
-		this.username = username;
-		this.idNum = idNum;
-		this.password = password; 
-		this.userType = userType;
-	}
+public class User {
+    private String idNumber;
+    private String username;
+    private String password;
+    private String department;
+    private String role;
 
-	public void setQuestion(int questionNum, String questionAns){	 
-		this.questionNum = questionNum;
-		this.questionAns = questionAns;	
-	}
+    // Constructor
+    public User(String idNumber, String password, String role) {
+        this.idNumber = idNumber;
+        this.password = password;
+        this.role = role;
+    }
 
-	public int getidNum(){
-		return idNum;
-	}
+    // Validation method
+    public boolean isInputValid() {
+        return idNumber != null && !idNumber.isEmpty() && 
+               password != null && idNumber.length() == 8 &&
+               role != null && !role.equals("Option");
+    }
 
-	public String getUsername(){
-		return username;		
-	}
-	 
-	public String getPassword(){
-		return password;
-	}
-	 
-	 public String getQuestionAns(){
-		return questionAns;
-	}
+    // Getters and Setters
+    public String getIdNumber() {
+        return idNumber;
+    }
 
-	 public int getQuestionNum(){
-		return questionNum;
-	}
+    public String getPassword() {
+        return password;
+    }
 
-	public int getUserType(){
-		return userType;
-	}
+    public String getRole() {
+        return role;
+    }
 
 }
