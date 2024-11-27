@@ -1,13 +1,52 @@
 import java.sql.*;
+import java.time.LocalDate;
 
 public class DatabaseHelper {
-    // JDBC connection URL to the ProgMP database
-    private static final String DB_URL = "jdbc:mysql://127.0.0.1:3306/ProgMP?useSSL=false";
-    private static final String DB_USER = "root";  // MySQL username
-    private static final String DB_PASSWORD = "Vianca";  // MySQL password
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/room_db";
+    private static final String DB_USERNAME = "root"; // Your MySQL username
+    private static final String DB_PASSWORD = "cbinfom"; // Your MySQL password
 
-    // Method to get a connection to the database
-    public static Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+    // Initialize the database and ensure the table exists
+    public static void initializeDatabase() {
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USERNAME, DB_PASSWORD)) {
+            if (conn != null) {
+                String createTableQuery = """
+                    CREATE TABLE IF NOT EXISTS bookings (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        selected_date DATE NOT NULL,
+                        time_slot VARCHAR(255) NOT NULL,
+                        room_name VARCHAR(255) NOT NULL,
+                        room_category VARCHAR(255) NOT NULL
+                    )
+                """;
+                
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.execute(createTableQuery);
+                    System.out.println("Database initialized successfully.");
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
+
+    // Insert a booking into the database
+    public static void insertBooking(LocalDate date, String timeSlot, String roomName, String roomCategory) {
+        String insertQuery = "INSERT INTO bookings (selected_date, time_slot, room_name, room_category) VALUES (?, ?, ?, ?)";
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USERNAME, DB_PASSWORD);
+             PreparedStatement pstmt = conn.prepareStatement(insertQuery)) {
+    
+            pstmt.setDate(1, Date.valueOf(date)); // Use java.sql.Date.valueOf
+            pstmt.setString(2, timeSlot);
+            pstmt.setString(3, roomName);
+            pstmt.setString(4, roomCategory);
+    
+            pstmt.executeUpdate();
+            System.out.println("Booking added to database: " + date + ", " + timeSlot + ", " + roomName + ", " + roomCategory);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    
 }
