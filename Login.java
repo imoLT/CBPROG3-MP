@@ -14,7 +14,6 @@ public class Login implements ActionListener {
         String enteredId = idNum.getText();
         String enteredPassword = new String(password.getPassword());
 
-        // Validate if fields are empty
         if (enteredId.equals("") || enteredPassword.equals("")) {
             if (enteredId.equals("") && enteredPassword.equals("")) {
                 JOptionPane.showMessageDialog(null, "Please enter your ID number and password.");

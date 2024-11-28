@@ -3,16 +3,14 @@ import java.awt.*;
 import java.awt.event.*;
 import java.sql.*;
 
-public class SignUp implements ActionListener, SignUpInterface {
+public class SignUpAdmin implements ActionListener, SignUpInterface {
     private static JFrame frame;
     private static JTextField idNumField;
     private static JPasswordField passwordField;
-    private static JComboBox<String> roleBox;
     private static JButton finishButton;
 
-    @Override
-    public void signUpMain() {  // Removed static modifier here
-        frame = new JFrame("Sign-Up");
+    public void signUpMain() { 
+        frame = new JFrame("Sign-Up a New Admin");
         JPanel panel = new JPanel(new GridBagLayout());
         frame.setSize(500, 500);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -39,24 +37,15 @@ public class SignUp implements ActionListener, SignUpInterface {
         passwordField = new JPasswordField(15);
         panel.add(passwordField, gbc);
 
-        // Add Role dropdown
-        gbc.gridx = 0;
-        gbc.gridy = 2;
-        panel.add(new JLabel("Role:"), gbc);
-        gbc.gridx = 1;
-        roleBox = new JComboBox<>(new String[]{"Option", "Professor", "ITS", "Security Office"});
-        panel.add(roleBox, gbc);
-
         // Add Finish button
         gbc.gridx = 0;
-        gbc.gridy = 3;
-        gbc.gridwidth = 2;
+        gbc.gridy = 2;
+        gbc.gridwidth = 1;
         gbc.anchor = GridBagConstraints.CENTER;
         finishButton = new JButton("Finish");
         panel.add(finishButton, gbc);
 
-        // Add action listener to the Finish button
-        finishButton.addActionListener(this);  // Changed to `this` instead of `new SignUp()`
+        finishButton.addActionListener(this);  
 
         frame.setVisible(true);
     }
@@ -64,12 +53,9 @@ public class SignUp implements ActionListener, SignUpInterface {
     public boolean isInputValid() {
         return !idNumField.getText().equals("") &&
                passwordField.getPassword().length > 0 &&
-               idNumField.getText().length() == 8 &&
-               !roleBox.getSelectedItem().equals("Option");
+               idNumField.getText().length() == 8;
     }
 
-    // ActionPerformed method with correct signature
-    @Override
     public void actionPerformed(ActionEvent e) {
         char[] password = passwordField.getPassword();
 
@@ -77,19 +63,21 @@ public class SignUp implements ActionListener, SignUpInterface {
             System.out.println("Inputs are valid. Proceeding to insert into database...");
 
             try (Connection connection = DatabaseHelper.getConnection()) {
-                String sql = "INSERT INTO nonApprovedUsers (id_number, password, role) VALUES (?, ?, ?)";
+                // SQL query to insert the user with "admin" role
+                String sql = "INSERT INTO users (idnumber, password, role) VALUES (?, ?, ?)";
                 PreparedStatement statement = connection.prepareStatement(sql);
                 statement.setString(1, idNumField.getText());
                 statement.setString(2, new String(password));
-                statement.setString(3, (String) roleBox.getSelectedItem());
+                
+                // Automatically set the role as "admin"
+                statement.setString(3, "Program Admin"); // Set the role to "admin"
 
                 int rowsInserted = statement.executeUpdate();
                 System.out.println("Rows inserted: " + rowsInserted);
                 
                 if (rowsInserted > 0) {
-                    JOptionPane.showMessageDialog(null, "Thank you! Your account is being processed.", "Message", JOptionPane.INFORMATION_MESSAGE);
+                    JOptionPane.showMessageDialog(null, "New admin account created successfully!", "Message", JOptionPane.INFORMATION_MESSAGE);
                     frame.dispose();
-                    Start.main(new String[]{});
                 }
             } catch (SQLException ex) {
                 ex.printStackTrace();

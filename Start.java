@@ -7,25 +7,24 @@ public class Start implements ActionListener {
     private static JButton loginButton, signUpButton;
     private static JFrame frame;
 
-    // Constructor is no longer required since we're using the same Start instance
     public void actionPerformed(ActionEvent e) {
-        JButton temp = (JButton) e.getSource();  // Get the button that was clicked
-        String buttonName = temp.getText();  // Use button text instead of setName (for readability)
+        JButton temp = (JButton) e.getSource();  
+        String buttonName = temp.getText(); 
 
         switch (buttonName) {
             case "Login":
-                Login.main(new String[]{});  // Open Login screen
-                frame.dispose();  // Close the current Start screen
+                Login.main(new String[]{});
+                frame.dispose();  
                 break;
             case "Sign Up":
-                SignUp.main(new String[]{});  // Open SignUp screen
-                frame.dispose();  // Close the frame after clicking "Sign Up"
+                SignUpUser signUpUser = new SignUpUser();
+                signUpUser.signUpMain();  
+                frame.dispose(); 
                 break;
         }
     }
 
     public static void main(String[] args) {
-        // Create the main frame
         frame = new JFrame("Welcome");
         JPanel panel = new JPanel();
 
@@ -36,28 +35,24 @@ public class Start implements ActionListener {
         panel.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
 
-        // Initialize the action listener (reused for both buttons)
-        Start startInstance = new Start(); 
+        Start start = new Start(); 
 
-        // Initialize login button and sign-up button
         loginButton = new JButton("Login");
-        loginButton.addActionListener(startInstance);  // Attach the same action listener to both buttons
+        loginButton.addActionListener(start); 
 
         signUpButton = new JButton("Sign Up");
-        signUpButton.addActionListener(startInstance);  // Same action listener for the Sign Up button
+        signUpButton.addActionListener(start); 
 
-        // Set constraints for Login button (centered on the panel)
-        gbc.gridx = 0;  // Column position
-        gbc.gridy = 0;  // Row position
-        gbc.insets = new Insets(10, 10, 10, 10);  // Padding around buttons
+        gbc.gridx = 0; 
+        gbc.gridy = 0; 
+        gbc.insets = new Insets(10, 10, 10, 10); 
         panel.add(loginButton, gbc);
 
-        // Set constraints for the Sign Up button
-        gbc.gridy = 1;  // Move to the next row for the Sign Up button
-        gbc.insets = new Insets(10, 10, 20, 10);  // Padding for the second button
+        gbc.gridy = 1;  
+        gbc.insets = new Insets(10, 10, 20, 10);  
         panel.add(signUpButton, gbc);
 
-        frame.setLocationRelativeTo(null);  // Center the frame on screen
-        frame.setVisible(true);  // Make the frame visible
+        frame.setLocationRelativeTo(null);  
+        frame.setVisible(true);  
     }
 }

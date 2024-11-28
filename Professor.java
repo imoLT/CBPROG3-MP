@@ -6,7 +6,7 @@ import javax.swing.*;
 public class Professor extends UniversityRoomBooking implements ActionListener {
     private JButton bookClassBtn, cancelBookBtn, checkBookBtn, callITBtn, callSecBtn;  // Removed static
     private JFrame frame;
-    private int idNum;  // Instance variable
+    private int idNum;
 
     public Professor(int idNum) {
         this.idNum = idNum;
@@ -77,23 +77,23 @@ public class Professor extends UniversityRoomBooking implements ActionListener {
         UniversityRoomBooking.roomBookMain(idNum);
     }
 
-    // Handle booking cancellation (you can implement this further based on your logic)
+    // Handle booking cancellation
     private void cancelBooking() {
-        JOptionPane.showMessageDialog(frame, "Booking cancellation feature is not yet implemented.");
+		JOptionPane.showMessageDialog(frame, "Booking cancellation feature is not yet implemented.");
     }
 
-    // Check the current room status (you can implement this further based on your logic)
+    // Check the current room status
     private void checkRoomStatus() {
-        JOptionPane.showMessageDialog(frame, "Room status check feature is not yet implemented.");
+		JOptionPane.showMessageDialog(frame, "Room status check feature is not yet implemented.");
     }
 
     // Call ITS support
     private void callITS() {
-        JOptionPane.showMessageDialog(frame, "ITS has been called.");
+		JOptionPane.showMessageDialog(frame, "ITS has been called.");
     }
 
     // Call Security
     private void callSecurity() {
-        JOptionPane.showMessageDialog(frame, "Security has been called.");
+		JOptionPane.showMessageDialog(frame, "Security has been called.");
     }
 }

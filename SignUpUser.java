@@ -3,15 +3,14 @@ import java.awt.*;
 import java.awt.event.*;
 import java.sql.*;
 
-public class SignUp implements ActionListener, SignUpInterface {
+public class SignUpUser implements ActionListener, SignUpInterface {
     private static JFrame frame;
     private static JTextField idNumField;
     private static JPasswordField passwordField;
     private static JComboBox<String> roleBox;
     private static JButton finishButton;
 
-    @Override
-    public void signUpMain() {  // Removed static modifier here
+    public void signUpMain() { 
         frame = new JFrame("Sign-Up");
         JPanel panel = new JPanel(new GridBagLayout());
         frame.setSize(500, 500);

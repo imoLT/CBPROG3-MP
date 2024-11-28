@@ -70,7 +70,7 @@ public class RoomCreatorWithGUI {
                 try {
                     int maxCapacity = Integer.parseInt(maxCapacityText);
 
-                    // Save to database using DatabaseHelper class
+                    // Save to database
                     if (saveRoomToDatabase(category, roomName, maxCapacity, tags)) {
                         statusLabel.setText("Room created successfully!");
                         clearFields(roomNameField, maxCapacityField, tagsField);
