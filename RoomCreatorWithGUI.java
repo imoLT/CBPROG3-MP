@@ -1,8 +1,8 @@
-import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.sql.*;
+import javax.swing.*;
 
 public class RoomCreatorWithGUI {
     public static void main(String[] args) {
@@ -13,13 +13,17 @@ public class RoomCreatorWithGUI {
         // Create the main frame
         JFrame frame = new JFrame("Room Creator");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(400, 300);
-        frame.setLayout(new GridLayout(6, 2, 10, 10));
+        frame.setSize(400, 350);
+        frame.setLayout(new GridLayout(7, 2, 10, 10)); // Adjust layout to fit additional field
 
         // Components for room category
         JLabel categoryLabel = new JLabel("Room Category:");
         String[] categories = {"Classroom", "Laboratory"};
         JComboBox<String> categoryComboBox = new JComboBox<>(categories);
+
+        // Components for building
+        JLabel buildingLabel = new JLabel("Building:");
+        JTextField buildingField = new JTextField();
 
         // Components for room name
         JLabel roomNameLabel = new JLabel("Room Name:");
@@ -41,6 +45,9 @@ public class RoomCreatorWithGUI {
         frame.add(categoryLabel);
         frame.add(categoryComboBox);
 
+        frame.add(buildingLabel); // Add building field between category and room name
+        frame.add(buildingField);
+
         frame.add(roomNameLabel);
         frame.add(roomNameField);
 
@@ -57,12 +64,13 @@ public class RoomCreatorWithGUI {
         submitButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                String category = categoryComboBox.getSelectedItem().toString().toLowerCase();
+                String category = categoryComboBox.getSelectedItem().toString();
+                String building = buildingField.getText().trim();
                 String roomName = roomNameField.getText().trim();
                 String maxCapacityText = maxCapacityField.getText().trim();
                 String tags = tagsField.getText().trim();
 
-                if (roomName.isEmpty() || maxCapacityText.isEmpty() || tags.isEmpty()) {
+                if (roomName.isEmpty() || building.isEmpty() || maxCapacityText.isEmpty() || tags.isEmpty()) {
                     statusLabel.setText("All fields are required!");
                     return;
                 }
@@ -71,9 +79,9 @@ public class RoomCreatorWithGUI {
                     int maxCapacity = Integer.parseInt(maxCapacityText);
 
                     // Save to database
-                    if (saveRoomToDatabase(category, roomName, maxCapacity, tags)) {
+                    if (saveRoomToDatabase(category, building, roomName, maxCapacity, tags)) {
                         statusLabel.setText("Room created successfully!");
-                        clearFields(roomNameField, maxCapacityField, tagsField);
+                        clearFields(buildingField, roomNameField, maxCapacityField, tagsField);
                     } else {
                         statusLabel.setText("Failed to create room.");
                     }
@@ -87,17 +95,17 @@ public class RoomCreatorWithGUI {
         frame.setVisible(true);
     }
 
-    // Modify this method to use DatabaseHelper for getting the connection
-    private static boolean saveRoomToDatabase(String category, String roomName, int maxCapacity, String tags) {
-        String insertQuery = "INSERT INTO rooms (category, room_name, max_capacity, tags) VALUES (?, ?, ?, ?)";
+    private static boolean saveRoomToDatabase(String category, String building, String roomName, int maxCapacity, String tags) {
+        String insertQuery = "INSERT INTO rooms (category, building, room_name, max_capacity, tags) VALUES (?, ?, ?, ?, ?)";
 
-        try (Connection conn = DatabaseHelper.getConnection();  // Use DatabaseHelper to get the connection
+        try (Connection conn = DatabaseHelper.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(insertQuery)) {
 
             pstmt.setString(1, category);
-            pstmt.setString(2, roomName);
-            pstmt.setInt(3, maxCapacity);
-            pstmt.setString(4, tags);
+            pstmt.setString(2, building);
+            pstmt.setString(3, roomName);
+            pstmt.setInt(4, maxCapacity);
+            pstmt.setString(5, tags);
 
             pstmt.executeUpdate();
             return true;
@@ -107,7 +115,8 @@ public class RoomCreatorWithGUI {
         }
     }
 
-    private static void clearFields(JTextField roomNameField, JTextField maxCapacityField, JTextField tagsField) {
+    private static void clearFields(JTextField buildingField, JTextField roomNameField, JTextField maxCapacityField, JTextField tagsField) {
+        buildingField.setText("");
         roomNameField.setText("");
         maxCapacityField.setText("");
         tagsField.setText("");
