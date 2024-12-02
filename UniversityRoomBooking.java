@@ -14,7 +14,7 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
 public class UniversityRoomBooking {
-    private static LocalDate selectedDate = null; // Single selected date
+    private static LocalDate selectedDate = null;
 	private static int idNum;
 	
 	public void UniverisityRoomBooking(int idNum){
@@ -28,7 +28,7 @@ public class UniversityRoomBooking {
     
     private static void openCalendar(int initialMonth, int idNum) {
         JFrame frame = new JFrame("Calendar - Single Date Selection");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         frame.setSize(600, 500);
         frame.setLayout(new BorderLayout());
 
@@ -174,54 +174,58 @@ public class UniversityRoomBooking {
     }
 
     private static void openTimeSlotMenu(LocalDate selectedDate, int idNum) {
-        // Create a new frame for time slots
-        JFrame timeSlotFrame = new JFrame("Time Slots");
-        timeSlotFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        timeSlotFrame.setSize(300, 400);
-        timeSlotFrame.setLayout(new BorderLayout());
+		// Create a new frame for time slots
+		JFrame timeSlotFrame = new JFrame("Time Slots");
+		timeSlotFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+		timeSlotFrame.setSize(300, 400);
+		timeSlotFrame.setLayout(new BorderLayout());
 
-        // Add a label showing the selected timeframe
-        JLabel timeframeLabel = new JLabel("Date: " + selectedDate);
-        timeframeLabel.setFont(new Font("Arial", Font.BOLD, 14));
-        timeframeLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        timeSlotFrame.add(timeframeLabel, BorderLayout.NORTH);
-        
-        // Create a panel for time slots
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+		// Add a label showing the selected timeframe
+		JLabel timeframeLabel = new JLabel("Date: " + selectedDate);
+		timeframeLabel.setFont(new Font("Arial", Font.BOLD, 14));
+		timeframeLabel.setHorizontalAlignment(SwingConstants.CENTER);
+		timeSlotFrame.add(timeframeLabel, BorderLayout.NORTH);
+		
+		// Create a panel for time slots
+		JPanel panel = new JPanel();
+		panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 
-        // Define time slot generation logic
-        int endHour = 23; // End at 10:00 PM
-        int intervalMinutes = 90; // Each slot is 1 hour 30 minutes
-        int gapMinutes = 15; // 15 minutes between slots
+		// Define time slot generation logic
+		int endHour = 23; // End at 10:00 PM
+		int intervalMinutes = 90; // Each slot is 1 hour 30 minutes
+		int gapMinutes = 15; // 15 minutes between slots
 
-        int currentHour = 7;
-        int currentMinute = 30;
+		int currentHour = 7;
+		int currentMinute = 30;
 
-        while (currentHour < endHour || (currentHour == endHour && currentMinute == 0)) {
-            // Calculate the start and end times for the slot
-            int endSlotHour = currentHour + (currentMinute + intervalMinutes) / 60;
-            int endSlotMinute = (currentMinute + intervalMinutes) % 60;
+		while (currentHour < endHour || (currentHour == endHour && currentMinute == 0)) {
+			// Calculate the start and end times for the slot
+			int endSlotHour = currentHour + (currentMinute + intervalMinutes) / 60;
+			int endSlotMinute = (currentMinute + intervalMinutes) % 60;
 
-            String startTime = String.format("%02d:%02d", currentHour, currentMinute);
-            String endTime = String.format("%02d:%02d", endSlotHour, endSlotMinute);
+			String startTime = String.format("%02d:%02d", currentHour, currentMinute);
+			String endTime = String.format("%02d:%02d", endSlotHour, endSlotMinute);
 
-            // Create a button for the time slot
-            JButton timeSlotButton = new JButton(startTime + " - " + endTime);
-            timeSlotButton.addActionListener(e -> openRoomSelectionMenu(selectedDate, timeSlotButton.getText(), idNum));
-            panel.add(timeSlotButton);
+			// Create a button for the time slot
+			JButton timeSlotButton = new JButton(startTime + " - " + endTime);
+			timeSlotButton.addActionListener(e -> {
+				// Close the time slot frame
+				timeSlotFrame.dispose();
+				openRoomSelectionMenu(selectedDate, timeSlotButton.getText(), idNum);
+			});
+			panel.add(timeSlotButton);
 
-            // Move to the next time slot (add interval + gap)
-            int totalMinutes = currentMinute + intervalMinutes + gapMinutes;
-            currentHour += totalMinutes / 60;
-            currentMinute = totalMinutes % 60;
-        }
+			// Move to the next time slot (add interval + gap)
+			int totalMinutes = currentMinute + intervalMinutes + gapMinutes;
+			currentHour += totalMinutes / 60;
+			currentMinute = totalMinutes % 60;
+		}
 
-        // Add the panel to a scroll pane
-        JScrollPane scrollPane = new JScrollPane(panel);
-        timeSlotFrame.add(scrollPane, BorderLayout.CENTER);
-        timeSlotFrame.setVisible(true);
-    }
+		// Add the panel to a scroll pane
+		JScrollPane scrollPane = new JScrollPane(panel);
+		timeSlotFrame.add(scrollPane, BorderLayout.CENTER);
+		timeSlotFrame.setVisible(true);
+	}
 
     private static void openRoomSelectionMenu(LocalDate selectedDate, String timeSlot, int idNum) {
 		JFrame roomFrame = new JFrame("Room Selection");
@@ -241,8 +245,8 @@ public class UniversityRoomBooking {
 		JLabel categoryLabel = new JLabel("Room Type:");
 		JComboBox<String> categoryDropdown = new JComboBox<>(new String[]{"Classroom", "Laboratory"});
 		
-        // Input for building
-        JLabel buildingLabel = new JLabel("Building:");
+		// Input for building
+		JLabel buildingLabel = new JLabel("Building:");
 		JTextField buildingField = new JTextField();
 
 		// Input for max capacity
@@ -256,7 +260,7 @@ public class UniversityRoomBooking {
 		// Add components to filter panel
 		filterPanel.add(categoryLabel);
 		filterPanel.add(categoryDropdown);
-        filterPanel.add(buildingLabel);
+		filterPanel.add(buildingLabel);
 		filterPanel.add(buildingField);
 		filterPanel.add(maxCapacityLabel);
 		filterPanel.add(maxCapacityField);
@@ -270,11 +274,16 @@ public class UniversityRoomBooking {
 				String selectedType = (String) categoryDropdown.getSelectedItem();
 				String dbType = selectedType.equalsIgnoreCase("Classroom") ? "classroom" : "laboratory";
 				int maxCapacity = Integer.parseInt(maxCapacityField.getText().trim());
-                String building = buildingField.getText().trim();
+				String building = buildingField.getText().trim();
 				String tags = tagsField.getText().trim();
-		
-				// Call showRooms with the filters
-				showRooms(roomFrame, dbType, maxCapacity, building, tags, selectedDate, timeSlot, idNum);
+
+				// Check if the building exists in the database
+				if (!buildingExist(building)) {
+					JOptionPane.showMessageDialog(roomFrame, "Building " + building + " not found anywhere in the database", "Building Not Found", JOptionPane.WARNING_MESSAGE);
+				} else {
+					// Call showRooms with the filters
+					showRooms(roomFrame, dbType, maxCapacity, building, tags, selectedDate, timeSlot, idNum);
+				}
 			} catch (NumberFormatException ex) {
 				JOptionPane.showMessageDialog(roomFrame, "Please enter a valid number for max capacity.");
 			}
@@ -303,7 +312,7 @@ public class UniversityRoomBooking {
                             "WHERE LOWER(category) = ? AND max_capacity >= ? AND LOWER(building) LIKE ? " +
                             (tagCondition.length() > 0 ? " AND " + tagCondition : "");
     
-        try (Connection conn = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/ProgMP?useSSL=false", "root", "cbinfom");
+        try (Connection conn = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/ProgMP?useSSL=false", "root", "Vianca");
              PreparedStatement pstmt = conn.prepareStatement(fetchQuery)) {
     
             pstmt.setString(1, category.toLowerCase());
@@ -367,41 +376,45 @@ public class UniversityRoomBooking {
     
         JButton bookButton = new JButton("Book Room");
         bookButton.addActionListener(e -> {
-            int selectedRow = roomTable.getSelectedRow();
-            if (selectedRow != -1) {
-                String roomName = (String) tableModel.getValueAt(selectedRow, 0);
-                String roomCategory = (String) tableModel.getValueAt(selectedRow, 4);
-                String roomBuilding = (String) tableModel.getValueAt(selectedRow, 2);
-                String status = (String) tableModel.getValueAt(selectedRow, 5);
-    
-                if ("Booked".equals(status)) {
-                    JOptionPane.showMessageDialog(roomFrame, "This room is already booked. Please choose another room.");
-                } else {
-                    try {
-                        RoomBooking.insertBooking(idNum, selectedDate, timeSlot, roomName, roomCategory, roomBuilding);
-    
-                        JOptionPane.showMessageDialog(roomFrame,
-                                "Room request sent to admin!\n" +
-                                "Details:\n" +
-                                "Booked by: " + idNum + "\n" +
-                                "Room: " + roomName + "\n" +
-                                "Category: " + roomCategory + "\n" +
-                                "Building: " + roomBuilding + "\n" +
-                                "Date: " + selectedDate + "\n" +
-                                "Time Slot: " + timeSlot,
-                                "Booking Confirmation",
-                                JOptionPane.INFORMATION_MESSAGE);
-    
-                        roomFrame.dispose();
-                    } catch (Exception ex) {
-                        JOptionPane.showMessageDialog(roomFrame, "An error occurred while booking the room. Please try again.");
-                        ex.printStackTrace();
-                    }
-                }
-            } else {
-                JOptionPane.showMessageDialog(roomFrame, "Please select a room to book.");
-            }
-        });
+			int selectedRow = roomTable.getSelectedRow();
+			if (selectedRow != -1) {
+				String roomName = (String) tableModel.getValueAt(selectedRow, 0);
+				String roomCategory = (String) tableModel.getValueAt(selectedRow, 4);
+				String roomBuilding = (String) tableModel.getValueAt(selectedRow, 2);
+				String status = (String) tableModel.getValueAt(selectedRow, 5);
+
+				// Check if the room exists in the database
+				if (!roomExist(roomName)) {
+					JOptionPane.showMessageDialog(roomFrame, "The room " + roomName + " does not exist in the database. Please choose another room.");
+				}
+				else{
+					if ("Booked".equals(status)) {
+						JOptionPane.showMessageDialog(roomFrame, "This room is already booked. Please choose another room.");
+					} else {
+						try {
+							RoomBooking.insertBooking(idNum, selectedDate, timeSlot, roomName, roomCategory, roomBuilding);
+							JOptionPane.showMessageDialog(roomFrame,
+									"Room request sent to admin!\n" +
+									"Details:\n" +
+									"Booked by: " + idNum + "\n" +
+									"Room: " + roomName + "\n" +
+									"Category: " + roomCategory + "\n" +
+									"Building: " + roomBuilding + "\n" +
+									"Date: " + selectedDate + "\n" +
+									"Time Slot: " + timeSlot,
+									"Booking Confirmation",
+									JOptionPane.INFORMATION_MESSAGE);
+							roomFrame.dispose();
+						} catch (Exception ex) {
+							JOptionPane.showMessageDialog(roomFrame, "An error occurred while booking the room. Please try again.");
+							ex.printStackTrace();
+						}
+					}
+				}
+			} else {
+				JOptionPane.showMessageDialog(roomFrame, "Please select a room to book.");
+			}
+		});
     
         JPanel buttonPanel = new JPanel(new FlowLayout());
         buttonPanel.add(bookButton);
@@ -412,6 +425,40 @@ public class UniversityRoomBooking {
         roomFrame.setVisible(true);
     }
     
+
+	private static boolean roomExist(String roomName) {
+		String query = "SELECT COUNT(*) FROM rooms WHERE room_name = ?";
+		try (Connection conn = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/ProgMP?useSSL=false", "root", "Vianca");
+			 PreparedStatement pstmt = conn.prepareStatement(query)) {
+			
+			pstmt.setString(1, roomName);
+			ResultSet rs = pstmt.executeQuery();
+			
+			if (rs.next() && rs.getInt(1) > 0) {
+				return true; // Room exists
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return false; // Room does not exist
+	}
+	
+	private static boolean buildingExist(String building) {
+		String checkBuildingQuery = "SELECT COUNT(*) FROM rooms WHERE LOWER(building) = ?";
+		try (Connection conn = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/ProgMP?useSSL=false", "root", "Vianca");
+			 PreparedStatement pstmt = conn.prepareStatement(checkBuildingQuery)) {
+
+			pstmt.setString(1, building.toLowerCase()); 
+			ResultSet rs = pstmt.executeQuery();
+			if (rs.next() && rs.getInt(1) > 0) {
+				return true;  
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return false;  
+	}
+
 
 
     // Method to check if a room is booked for a given date and time slot

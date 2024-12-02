@@ -13,6 +13,10 @@ public class ITS implements DepartmentRequests {
         this.connWrapper = connWrapper;
         this.userId = userId;
     }
+	
+	public int getUserId(){
+		return this.userId;
+	}
 
     @Override
     public void showMainPanel() {
@@ -41,41 +45,54 @@ public class ITS implements DepartmentRequests {
         frame.setVisible(true);
     }
 
-    @Override
-    public void openRequestsPanel() {
-        frame.getContentPane().removeAll();
-        JPanel requestPanel = new JPanel(new BorderLayout());
+	public void openRequestsPanel() {
+		frame.getContentPane().removeAll();
+		JPanel requestPanel = new JPanel(new BorderLayout());
 
-        JTable requestTable = new JTable();
-        DefaultTableModel tableModel = new DefaultTableModel(new String[]{"ID", "Room", "Issue", "Status", "Responder"}, 0);
-        requestTable.setModel(tableModel);
+		JTable requestTable = new JTable();
+		DefaultTableModel tableModel = new DefaultTableModel(new String[]{"Request ID", "Room", "Issue", "Status", "Responder"}, 0);
+		requestTable.setModel(tableModel);
 
-        try (Connection conn = connWrapper.getConnection()) {
-            String query = "SELECT * FROM its_requests WHERE status = 'Pending'";
-            try (PreparedStatement pst = conn.prepareStatement(query);
-                 ResultSet rs = pst.executeQuery()) {
+		// SQL query to get request details and responder's name 
+		String query = "SELECT r.request_id, r.room, r.issue_description, r.status, " +
+					   "CONCAT(a.firstName, ' ', a.lastName) AS responder " +  
+					   "FROM its_requests r " +
+					   "LEFT JOIN users a ON r.accepted_by = a.idNumber " +
+					   "WHERE r.status = 'Pending'";
 
-                while (rs.next()) {
-                    int requestId = rs.getInt("request_id");
-                    String room = rs.getString("room");
-                    String issue = rs.getString("issue_description");
-                    String status = rs.getString("status");
-                    String responder = rs.getString("accepted_by");
-                    tableModel.addRow(new Object[]{requestId, room, issue, status, responder});
-                }
-            }
-        } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(frame, "Error loading requests: " + ex.getMessage());
-        }
+		try (Connection conn = connWrapper.getConnection();
+			PreparedStatement pst = conn.prepareStatement(query);
+			ResultSet rs = pst.executeQuery()) {
 
-        requestPanel.add(new JScrollPane(requestTable), BorderLayout.CENTER);
-        JPanel buttonPanel = createActionButtons(requestTable, tableModel);
-        requestPanel.add(buttonPanel, BorderLayout.SOUTH);
+			// Loop through the result set and populate the table
+			while (rs.next()) {
+				int requestId = rs.getInt("request_id");
+				String room = rs.getString("room");  // Get the room value here
+				String issue = rs.getString("issue_description");
+				String status = rs.getString("status");
 
-        frame.add(requestPanel);
-        frame.revalidate();
-        frame.repaint();
-    }
+				// Get responder's full name (which is concatenated in the query)
+				String responder = rs.getString("responder");
+
+				// Add a row to the table model
+				tableModel.addRow(new Object[]{requestId, room, issue, status, responder});
+			}
+		} catch (SQLException ex) {
+			JOptionPane.showMessageDialog(frame, "Error loading requests: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+		}
+
+		// Add the table to the panel with a scroll pane
+		requestPanel.add(new JScrollPane(requestTable), BorderLayout.CENTER);
+
+		// action buttons 
+		JPanel buttonPanel = createActionButtons(requestTable, tableModel);
+		requestPanel.add(buttonPanel, BorderLayout.SOUTH);
+
+		// Add the request panel to the frame and refresh the table
+		frame.add(requestPanel);
+		frame.revalidate();
+		frame.repaint();
+	}
 
     @Override
     public void openMyRequestsPanel() {
@@ -83,7 +100,7 @@ public class ITS implements DepartmentRequests {
         JPanel myRequestsPanel = new JPanel(new BorderLayout());
 
         JTable myRequestsTable = new JTable();
-        DefaultTableModel myTableModel = new DefaultTableModel(new String[]{"ID", "Room", "Issue", "Status", "Responder"}, 0);
+        DefaultTableModel myTableModel = new DefaultTableModel(new String[]{"ID", "Room", "Issue", "Status"}, 0);
         myRequestsTable.setModel(myTableModel);
 
         try (Connection conn = connWrapper.getConnection()) {
@@ -96,8 +113,7 @@ public class ITS implements DepartmentRequests {
                         String room = rs.getString("room");
                         String issue = rs.getString("issue_description");
                         String status = rs.getString("status");
-                        String responder = rs.getString("accepted_by");
-                        myTableModel.addRow(new Object[]{requestId, room, issue, status, responder});
+                        myTableModel.addRow(new Object[]{requestId, room, issue, status});
                     }
                 }
             }
@@ -128,6 +144,27 @@ public class ITS implements DepartmentRequests {
         }
     }
 
+	private String getCurrentUserName() {
+		String fullName = "none"; //initialize
+		String query = "SELECT firstName, lastName FROM users WHERE idNumber = ?";
+
+		try (Connection conn = connWrapper.getConnection();
+			 PreparedStatement pst = conn.prepareStatement(query)) {
+			pst.setInt(1, userId);  // Use the current user ID
+			try (ResultSet rs = pst.executeQuery()) {
+				if (rs.next()) {
+					String firstName = rs.getString("firstName");
+					String lastName = rs.getString("lastName");
+					fullName = firstName + " " + lastName;  // Concatenate first and last name
+				}
+			}
+		} catch (SQLException ex) {
+			JOptionPane.showMessageDialog(frame, "Error fetching user name: " + ex.getMessage());
+		}
+
+		return fullName;
+	}
+
     @Override
     public void updateResponder(int requestId, String responder) {
         try (Connection conn = connWrapper.getConnection()) {
@@ -149,17 +186,28 @@ public class ITS implements DepartmentRequests {
     JButton closeButton = new JButton("Close");
 
     acceptButton.addActionListener(e -> {
-        int selectedRow = requestTable.getSelectedRow();
-        if (selectedRow != -1) {
-            int requestId = (int) tableModel.getValueAt(selectedRow, 0);
-            updateRequestStatus(requestId, "Processing");
-            updateResponder(requestId, Integer.toString(userId));
-            tableModel.setValueAt("Processing", selectedRow, 3);
-            tableModel.setValueAt(userId, selectedRow, 4);
-        } else {
-            JOptionPane.showMessageDialog(frame, "Please select a request to accept.");
-        }
-    });
+		int selectedRow = requestTable.getSelectedRow();
+		if (selectedRow != -1) {
+			// Get the request ID of the selected row
+			int requestId = (int) tableModel.getValueAt(selectedRow, 0);
+
+			// Update the request status to "Processing"
+			updateRequestStatus(requestId, "Processing");
+
+			// Update the database to set the current user as the responder
+			updateResponder(requestId, String.valueOf(userId));
+
+			// Fetch the current user's full name
+			String currentUserName = getCurrentUserName();
+
+			// Update the table with the new responder's name
+			tableModel.setValueAt("Processing", selectedRow, 3);  // Update status to "Processing"
+			tableModel.setValueAt(currentUserName, selectedRow, 4);  // Update responder with current user's name
+		} else {
+			JOptionPane.showMessageDialog(frame, "Please select a request to accept.");
+		}
+	});
+
 
     declineButton.addActionListener(e -> {
         int selectedRow = requestTable.getSelectedRow();
@@ -172,10 +220,9 @@ public class ITS implements DepartmentRequests {
         }
     });
 
-    // Correct close action: Dispose the current frame and reopen the main panel
     closeButton.addActionListener(e -> {
-        frame.dispose(); // Close the current frame
-        showMainPanel(); // Open the main panel in a new frame
+        frame.dispose(); 
+        showMainPanel(); 
     });
 
     buttonPanel.add(acceptButton);
@@ -185,38 +232,37 @@ public class ITS implements DepartmentRequests {
     return buttonPanel;
 }
 
-private JPanel createCompletionButtons(JTable myRequestsTable, DefaultTableModel myTableModel) {
-    JPanel buttonPanel = new JPanel();
-    JButton completeButton = new JButton("Complete");
-    JButton closeButton = new JButton("Close");
+	private JPanel createCompletionButtons(JTable myRequestsTable, DefaultTableModel myTableModel) {
+		JPanel buttonPanel = new JPanel();
+		JButton completeButton = new JButton("Complete");
+		JButton closeButton = new JButton("Close");
 
-    completeButton.addActionListener(e -> {
-        int selectedRow = myRequestsTable.getSelectedRow();
-        if (selectedRow != -1) {
-            int requestId = (int) myTableModel.getValueAt(selectedRow, 0);
-            String currentStatus = (String) myTableModel.getValueAt(selectedRow, 3);
+		completeButton.addActionListener(e -> {
+			int selectedRow = myRequestsTable.getSelectedRow();
+			if (selectedRow != -1) {
+				int requestId = (int) myTableModel.getValueAt(selectedRow, 0);
+				String currentStatus = (String) myTableModel.getValueAt(selectedRow, 3);
 
-            if ("Processing".equalsIgnoreCase(currentStatus)) {
-                updateRequestStatus(requestId, "Completed");
-                myTableModel.setValueAt("Completed", selectedRow, 3);
-            } else {
-                JOptionPane.showMessageDialog(frame, "Only requests in 'Processing' status can be completed.");
-            }
-        } else {
-            JOptionPane.showMessageDialog(frame, "Please select a request to complete.");
-        }
-    });
+				if ("Processing".equalsIgnoreCase(currentStatus)) {
+					updateRequestStatus(requestId, "Completed");
+					myTableModel.setValueAt("Completed", selectedRow, 3);
+				} else {
+					JOptionPane.showMessageDialog(frame, "Only requests in 'Processing' status can be completed.");
+				}
+			} else {
+				JOptionPane.showMessageDialog(frame, "Please select a request to complete.");
+			}
+		});
 
-    // Correct close action: Dispose the current frame and reopen the main panel
-    closeButton.addActionListener(e -> {
-        frame.dispose(); // Close the current frame
-        showMainPanel(); // Open the main panel in a new frame
-    });
+		closeButton.addActionListener(e -> {
+			frame.dispose(); 
+			showMainPanel(); 
+		});
 
-    buttonPanel.add(completeButton);
-    buttonPanel.add(closeButton);
+		buttonPanel.add(completeButton);
+		buttonPanel.add(closeButton);
 
-    return buttonPanel;
-}
+		return buttonPanel;
+	}
 
 }

@@ -14,7 +14,7 @@ public class ProgramAdmin implements ActionListener {
     private static JButton createRoomButton;
     private static JButton createAdminButton;
 	private static JButton allAccountsButton;
-	private static JButton removeUserButton;
+	private static JButton deleteRoomButton;
 
     private static JLabel userLabel;
     private static JTextField enterUser;
@@ -40,15 +40,15 @@ public class ProgramAdmin implements ActionListener {
             case "acctButton":
                 DisplayNonApprovedAccounts();
                 break;
-			case "removeUserButton":
-				removeUser(getIdNum());
-				break;
 			case "allAccountsButton":
 				DisplayApprovedAccounts();
 				break;
             case "createRoomButton":
                 RoomCreatorWithGUI.main(new String[] {});
                 break;
+			case "deleteRoomButton":
+				deleteRoom();
+				break;
             case "createAdminButton":
                 SignUpAdmin signUpAdmin = new SignUpAdmin();
                 signUpAdmin.signUpMain();
@@ -59,6 +59,12 @@ public class ProgramAdmin implements ActionListener {
             case "roomButton":
                 displayAllRooms();
                 break;
+			case "assignScheduleButton": // Added missing case
+				displayProfessorsForScheduling(); // Call the scheduling method
+				break;
+			case "modifyScheduleButton":
+			ModifyRegularSchedules.displayRegularSchedules();
+			break;
             case "logoutButton":
                 frame.dispose();
                 Start.main(new String[]{});
@@ -87,17 +93,9 @@ public class ProgramAdmin implements ActionListener {
         acctButton.setName("acctButton");
         panel.add(acctButton, gbc);
 		
-		// Remove User
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        removeUserButton = new JButton("Remove a User");
-        removeUserButton.addActionListener(new ProgramAdmin(getIdNum()));
-        removeUserButton.setName("removeUserButton");
-        panel.add(removeUserButton, gbc);
-
         // View All Accounts in the Database
         gbc.gridx = 0;
-        gbc.gridy = 2;
+        gbc.gridy = 1;
         allAccountsButton = new JButton("View All Approved Accounts in the Database");
         allAccountsButton.addActionListener(new ProgramAdmin(getIdNum()));
         allAccountsButton.setName("allAccountsButton");
@@ -105,7 +103,7 @@ public class ProgramAdmin implements ActionListener {
 
         // Create New Admin
         gbc.gridx = 0;
-        gbc.gridy = 3;
+        gbc.gridy = 2;
         createAdminButton = new JButton("Create New Admin");
         createAdminButton.addActionListener(new ProgramAdmin(getIdNum()));
         createAdminButton.setName("createAdminButton");
@@ -113,11 +111,19 @@ public class ProgramAdmin implements ActionListener {
 
         // Create New Room
         gbc.gridx = 0;
-        gbc.gridy = 4;
+        gbc.gridy = 3;
         createRoomButton = new JButton("Create New Room");
         createRoomButton.addActionListener(new ProgramAdmin(getIdNum()));
         createRoomButton.setName("createRoomButton");
         panel.add(createRoomButton, gbc);
+		
+		// Delete a room
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        deleteRoomButton = new JButton("Delete a Room");
+        deleteRoomButton.addActionListener(new ProgramAdmin(getIdNum()));
+        deleteRoomButton.setName("deleteRoomButton");
+        panel.add(deleteRoomButton, gbc);
 
         // View Requests for Room Reservation
         gbc.gridx = 0;
@@ -140,7 +146,6 @@ public class ProgramAdmin implements ActionListener {
 		
 		JButton assignScheduleButton = new JButton("Assign Regular Schedule");
 		assignScheduleButton.addActionListener(new ActionListener() {
-			@Override
 			public void actionPerformed(ActionEvent e) {
 				displayProfessorsForScheduling(); // Call the method to display professors
 			}
@@ -148,9 +153,18 @@ public class ProgramAdmin implements ActionListener {
 		assignScheduleButton.setName("assignScheduleButton");
 		panel.add(assignScheduleButton, gbc);
 		
+		gbc.gridx = 0;
+		gbc.gridy = 8; // Place after the last button's y-position
+		JButton modifyScheduleButton = new JButton("Modify Regular Schedules");
+		modifyScheduleButton.addActionListener(e -> {
+				ModifyRegularSchedules.displayRegularSchedules(); // Open the modification interface
+			});
+		modifyScheduleButton.setName("modifyScheduleButton");
+			panel.add(modifyScheduleButton, gbc);
+			
 		// Logout
 		gbc.gridx = 0;
-		gbc.gridy = 8;
+		gbc.gridy = 9;
 		logoutButton = new JButton("Logout");
 		logoutButton.addActionListener(new ProgramAdmin(getIdNum()));
 		logoutButton.setName("logoutButton");
@@ -201,40 +215,43 @@ public class ProgramAdmin implements ActionListener {
 				// Check if the ID number field is empty
 				if (userIdText.equals("")) {
 					JOptionPane.showMessageDialog(null, "Please enter an ID number!", "Error", JOptionPane.ERROR_MESSAGE);
-					return;  // Exit the method
+					return;  
 				}
+				
+				else{
+					try {
+						// Parse the user ID from the text field
+						int userId = Integer.parseInt(userIdText);
 
-				try {
-					// Parse the user ID from the text field
-					int userId = Integer.parseInt(userIdText);
+						// Check if a valid action is selected
+						if ("Option".equals(selectedAction)) {
+							JOptionPane.showMessageDialog(null, "Please choose an action to perform!", "Warning", JOptionPane.WARNING_MESSAGE);
+						}
+						
+						else{
+							// Process the selected action
+							if ("Approve".equals(selectedAction)) {
+								approveUser(userId); 
+								enterUser.setText("");
+								refreshNonApprovedUsersTable(model);
+							} else if ("Decline".equals(selectedAction)) {
+								declineUser(userId);  // Decline the user
+								enterUser.setText("");
+								// Refresh the non-approved users table after decline
+								refreshNonApprovedUsersTable(model);
+							}
+						}
 
-					// Check if a valid action is selected
-					if ("Option".equals(selectedAction)) {
-						JOptionPane.showMessageDialog(null, "Please choose an action to perform!", "Warning", JOptionPane.WARNING_MESSAGE);
-						return;  // Exit if no action is selected
+					} catch (NumberFormatException ex) {
+						// Catch invalid number format
+						JOptionPane.showMessageDialog(null, "Invalid ID format! Please enter a valid number.", "Error", JOptionPane.ERROR_MESSAGE);
+					} catch (Exception ex) {
+						// General exception handling for any other errors
+						JOptionPane.showMessageDialog(null, "An unexpected error occurred: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+						ex.printStackTrace();
 					}
-
-					// Process the selected action
-					if ("Approve".equals(selectedAction)) {
-						approveUser(userId);  // Approve the user
-						// Refresh the approved users table after approval
-						refreshNonApprovedUsersTable(model);
-					} else if ("Decline".equals(selectedAction)) {
-						declineUser(userId);  // Decline the user
-						// Refresh the non-approved users table after decline
-						refreshNonApprovedUsersTable(model);
-					}
-
-				} catch (NumberFormatException ex) {
-					// Catch invalid number format
-					JOptionPane.showMessageDialog(null, "Invalid ID format! Please enter a valid number.", "Error", JOptionPane.ERROR_MESSAGE);
-				} catch (Exception ex) {
-					// General exception handling for any other errors
-					JOptionPane.showMessageDialog(null, "An unexpected error occurred: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-					ex.printStackTrace();
 				}
-			}
-		});
+		}});
 
 
 
@@ -267,8 +284,7 @@ public class ProgramAdmin implements ActionListener {
 		}
 	}
 
-    //Moves the user from non=approve to the table of all approved users
-		
+    //Moves the user from non=approve to the table of all approved users	
 	private static void approveUser(int idNumber) {
 		String selectSql = "SELECT * FROM nonApprovedUsers WHERE id_number = ?";
 		String deleteSql = "DELETE FROM nonApprovedUsers WHERE id_number = ?";
@@ -284,9 +300,9 @@ public class ProgramAdmin implements ActionListener {
 				ResultSet rs = selectStmt.executeQuery();
 
 				if (rs.next()) {
-					// Proceed to insert into the users table with validated role
+					// Proceed to insert into the users table 
 					try (PreparedStatement insertStmt = connection.prepareStatement(insertSql)) {
-						insertStmt.setInt(1, idNumber);  // Insert using the user id
+						insertStmt.setInt(1, idNumber);  
 						insertStmt.executeUpdate();
 					}
 
@@ -299,13 +315,13 @@ public class ProgramAdmin implements ActionListener {
 					connection.commit();  // Commit the transaction
 					JOptionPane.showMessageDialog(null, "User approved successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
 
-					// Refresh the non-approved users table after approval (no need to refresh approved users table)
-					refreshNonApprovedUsersTable(model);  // Refresh non-approved users table only
+					// Refresh the non-approved users table after approval
+					refreshNonApprovedUsersTable(model);  
 				} else {
 					JOptionPane.showMessageDialog(null, "User not found in the non-approved list.", "Error", JOptionPane.ERROR_MESSAGE);
 				}
 			} catch (SQLException e) {
-				connection.rollback();  // Rollback if there's an error
+				connection.rollback();
 				e.printStackTrace();
 				JOptionPane.showMessageDialog(null, "Error approving user: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
 			}
@@ -329,7 +345,7 @@ public class ProgramAdmin implements ActionListener {
 			if (rowsAffected > 0) {
 				JOptionPane.showMessageDialog(null, "User with ID " + userId + " request has been declined and removed.", "Success", JOptionPane.INFORMATION_MESSAGE);
 				
-				// Refresh the **non-approved users table** to reflect the removal
+				// Refresh the table
 				String selectNonApprovedUsersSql = "SELECT id_number, firstname, lastname, role FROM nonApprovedUsers";
 				refreshNonApprovedUsersTable(model);
 			} else {
@@ -341,8 +357,171 @@ public class ProgramAdmin implements ActionListener {
 			e.printStackTrace();
 		}
 	}
+	
+	private static void deleteRoom() {
+		// Create the frame and table for room deletion
+		JFrame frame = new JFrame("Delete Room");
+		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+		frame.setSize(500, 600);
+		
+		// DefaultTableModel for room data
+		DefaultTableModel tableModel = new DefaultTableModel(new Object[]{"Room Name", "Category", "Capacity", "Building"}, 0);
+		JTable roomTable = new JTable(tableModel);
+		
+		// Fetch room data from the database and populate the table
+		refreshRooms(tableModel);
 
+		// Label, TextField, and Button for room deletion
+		JLabel label = new JLabel("Enter the room name of the room you want to remove: ");
+		JTextField roomNameField = new JTextField(20);
+		
+		// Make the button smaller by setting a preferred size
+		JButton removeButton = new JButton("Remove Room");
+		removeButton.setPreferredSize(new Dimension(120, 30));  // Set preferred size to make it smaller
+		
+		// ActionListener for the "Remove Room" button
+		removeButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				String roomName = roomNameField.getText();
+				if (roomName.isEmpty()) {
+					JOptionPane.showMessageDialog(frame, "Please enter a room name", "Error", JOptionPane.ERROR_MESSAGE);
+					return;
+				}
+				roomRemover(roomName);  // Call room remover with the room name
+				refreshRooms(tableModel);  // Refresh room data in the table after deletion
+			}
+		});
 
+		// Panel to organize components
+		JPanel panel = new JPanel();
+		panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));  // Stack components vertically
+
+		// Add components to the panel
+		panel.add(new JScrollPane(roomTable));  // Add table to scroll pane
+		
+		// Spacer to add some space between the table and the input section
+		panel.add(Box.createVerticalStrut(10)); // Vertical space between table and input area
+		
+		// Create a new JPanel with FlowLayout to align label, text field, and button horizontally
+		JPanel inputPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
+		inputPanel.add(label);  // Add the label
+		inputPanel.add(roomNameField);  // Add the text field
+		inputPanel.add(removeButton);  // Add the button
+		
+		// Add the inputPanel (label, text field, button) to the main panel
+		panel.add(inputPanel);
+		
+		frame.add(panel);
+		frame.setVisible(true);
+	}
+
+	// Method to refresh room data and update the table
+	private static void refreshRooms(DefaultTableModel tableModel) {
+		// Clear the current data in the table
+		tableModel.setRowCount(0);
+
+		// Fetch updated room data from the database and populate the table
+		try (Connection connection = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/ProgMP?useSSL=false", "root", "Vianca")) {
+			String fetchRoomsSql = "SELECT room_name, category, max_capacity, building FROM rooms";
+			try (PreparedStatement stmt = connection.prepareStatement(fetchRoomsSql);
+				 ResultSet rs = stmt.executeQuery()) {
+				while (rs.next()) {
+					String roomName = rs.getString("room_name");
+					String category = rs.getString("category");
+					int capacity = rs.getInt("max_capacity");
+					String building = rs.getString("building");
+					tableModel.addRow(new Object[]{roomName, category, capacity, building});
+				}
+			}
+		} catch (SQLException e) {
+			JOptionPane.showMessageDialog(null, "Error fetching room data: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+			e.printStackTrace();
+		}
+	}
+
+	private static void roomRemover(String roomName) {
+		// SQL queries to delete the room from the related tables
+		String deleteFromApprovedBookingsSql = "DELETE FROM approvedBookings WHERE room_name = ?";
+		String deleteFromUnapproveBookingsSql = "DELETE FROM unapproveBookings WHERE room_name = ?";
+		String deleteFromRegularSchedulesSql = "DELETE FROM regularSchedules WHERE room_name = ?";
+		String deleteFromSecurityRequestsSql = "DELETE FROM security_requests WHERE room = ?";
+		String deleteFromItsRequestsSql = "DELETE FROM its_requests WHERE room = ?";
+
+		// Declare the connection variable here so it can be accessed in both try and catch blocks
+		Connection connection = null;
+
+		try {
+			// Establish connection to the database
+			connection = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/ProgMP?useSSL=false", "root", "Vianca");
+
+			// Begin a transaction to ensure all deletions are handled atomically
+			connection.setAutoCommit(false);
+
+			// Delete entries in the related tables
+			try (PreparedStatement stmt = connection.prepareStatement(deleteFromApprovedBookingsSql)) {
+				stmt.setString(1, roomName);  // Use room name as parameter
+				stmt.executeUpdate();
+			}
+
+			try (PreparedStatement stmt = connection.prepareStatement(deleteFromUnapproveBookingsSql)) {
+				stmt.setString(1, roomName);
+				stmt.executeUpdate();
+			}
+
+			try (PreparedStatement stmt = connection.prepareStatement(deleteFromRegularSchedulesSql)) {
+				stmt.setString(1, roomName);
+				stmt.executeUpdate();
+			}
+
+			try (PreparedStatement stmt = connection.prepareStatement(deleteFromSecurityRequestsSql)) {
+				stmt.setString(1, roomName);
+				stmt.executeUpdate();
+			}
+
+			try (PreparedStatement stmt = connection.prepareStatement(deleteFromItsRequestsSql)) {
+				stmt.setString(1, roomName);
+				stmt.executeUpdate();
+			}
+
+			// Now, delete the room from the 'rooms' table
+			String deleteRoomSql = "DELETE FROM rooms WHERE room_name = ?";
+			try (PreparedStatement stmt = connection.prepareStatement(deleteRoomSql)) {
+				stmt.setString(1, roomName);
+				int rowsAffected = stmt.executeUpdate();
+
+				if (rowsAffected > 0) {
+					JOptionPane.showMessageDialog(null, "Room " + roomName + " and its associated data have been deleted.", "Success", JOptionPane.INFORMATION_MESSAGE);
+				} else {
+					JOptionPane.showMessageDialog(null, "No room found with name " + roomName, "Error", JOptionPane.ERROR_MESSAGE);
+				}
+			}
+
+			// Commit the transaction if all deletions were successful
+			connection.commit();
+		} catch (SQLException e) {
+			// Rollback the transaction in case of any error
+			if (connection != null) {
+				try {
+					connection.rollback();
+				} catch (SQLException rollbackEx) {
+					rollbackEx.printStackTrace();
+				}
+			}
+
+			JOptionPane.showMessageDialog(null, "Error deleting room and its associated data: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+			e.printStackTrace();
+		} finally {
+			// Ensure the connection is closed
+			if (connection != null) {
+				try {
+					connection.close();
+				} catch (SQLException closeEx) {
+					closeEx.printStackTrace();
+				}
+			}
+		}
+	}
+	
 	private static void DisplayApprovedAccounts() {
 		JFrame frame = new JFrame("Approved Users");
 		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -386,112 +565,113 @@ public class ProgramAdmin implements ActionListener {
 	}
 	
 	private static void DisplayRoomBookRequests() {
-		JFrame frame = new JFrame("Reservation Requests");
-		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-		frame.setSize(600, 400);
-		frame.setLocationRelativeTo(null);
+		// Establish connection to the database
+		try (Connection connection = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/ProgMP?useSSL=false", "root", "Vianca")) {
+			
+			// Create frame for displaying room booking requests
+			JFrame frame = new JFrame("Reservation Requests");
+			frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+			frame.setSize(600, 400);
+			frame.setLocationRelativeTo(null);
 
-		// Define the column names for the room booking table
-		String[] columnNames = {"Booking ID", "Professor ID", "First Name", "Last Name", "Booking Date", "Time Slot", "Room Name", "Room Category"};
+			// Define the column names for the room booking table
+			String[] columnNames = {"Booking ID", "Professor ID", "First Name", "Last Name", "Booking Date", "Time Slot", "Room Name", "Room Category"};
 
-		// DefaultTableModel with empty data
-		DefaultTableModel model = new DefaultTableModel(columnNames, 0);
+			// DefaultTableModel with empty data
+			DefaultTableModel model = new DefaultTableModel(columnNames, 0);
 
-		// Create JTable
-		JTable table = new JTable(model);
-		table.setFillsViewportHeight(true);
-		JScrollPane scrollPane = new JScrollPane(table);
-		frame.add(scrollPane, BorderLayout.CENTER);
+			// Create JTable and set it to fill the viewport
+			JTable table = new JTable(model);
+			table.setFillsViewportHeight(true);
+			JScrollPane scrollPane = new JScrollPane(table);
+			frame.add(scrollPane, BorderLayout.CENTER);
 
-		// SQL query to select all data from the unapproveBookings table
-		String sql = "SELECT P.id AS booking_id, P.professor_id, U.firstName, U.lastName, P.booking_date, P.time_slot, P.room_name, P.room_category " +
-                 "FROM unapproveBookings P " +
-                 "INNER JOIN users U ON ub.professor_id = u.idNumber";
-				 
-		// Refresh the table with the current data (room booking data)
-		refreshRoomBookingTable(model, sql);
+			// SQL query to select all data from the unapproveBookings table
+			String sql = "SELECT P.id AS booking_id, P.professor_id, U.firstName, U.lastName, P.booking_date, P.time_slot, P.room_name, P.room_category " +
+						 "FROM unapproveBookings P " +
+						 "INNER JOIN users U ON P.professor_id = U.idNumber";  // Corrected the alias in JOIN
 
-		// Add a text field and dropdown to approve/decline room bookings
-		JPanel panel = new JPanel();
-		JLabel userLabel = new JLabel("Enter Booking ID to approve/decline:");
-		panel.add(userLabel);
-		JTextField enterUser = new JTextField(15);
-		panel.add(enterUser);
+			// Refresh the table with the current data
+			refreshRoomBookingTable(model, connection, sql);  // Pass connection to refresh method
 
-		// Dropdown for actions (Approve/Decline)
-		String[] actions = {"Option", "Approve", "Decline"};
-		bookingActionDropdown = new JComboBox<>(actions);
-		panel.add(bookingActionDropdown);
+			// Add a text field and dropdown to approve/decline room bookings
+			JPanel panel = new JPanel();
+			JLabel userLabel = new JLabel("Enter Booking ID to approve/decline:");
+			panel.add(userLabel);
+			JTextField enterUser = new JTextField(15);
+			panel.add(enterUser);
 
-		// Action listener for dropdown
-		bookingActionDropdown.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				String selectedAction = (String) bookingActionDropdown.getSelectedItem();
-				String bookingIdText = enterUser.getText().trim();
-				if (bookingIdText.isEmpty()) {
-					JOptionPane.showMessageDialog(null, "Please enter a Booking ID!", "Error", JOptionPane.ERROR_MESSAGE);
-					return;
-				}
+			// Dropdown for actions (Approve/Decline)
+			JComboBox<String> bookingActionDropdown = new JComboBox<>(new String[]{"Option", "Approve", "Decline"});
+			panel.add(bookingActionDropdown);
 
-				try {
-					int bookingId = Integer.parseInt(bookingIdText);
-					if ("Option".equals(selectedAction)) {
-						JOptionPane.showMessageDialog(null, "Please choose an action to perform!", "Warning", JOptionPane.WARNING_MESSAGE);
-					} else if ("Approve".equals(selectedAction)) {
-						approveBooking(bookingId);  // Approve the booking
-						refreshRoomBookingTable(model, sql); // Refresh the table after approval
-					} else if ("Decline".equals(selectedAction)) {
-						declineBooking(bookingId);  // Decline the booking
-						refreshRoomBookingTable(model, sql); // Refresh the table after declining
+			// Action listener for dropdown
+			bookingActionDropdown.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					String selectedAction = (String) bookingActionDropdown.getSelectedItem();
+					String bookingIdText = enterUser.getText().trim();
+					if (bookingIdText.isEmpty()) {
+						JOptionPane.showMessageDialog(null, "Please enter a Booking ID!", "Error", JOptionPane.ERROR_MESSAGE);
+					} else {
+						try {
+							int bookingId = Integer.parseInt(bookingIdText);
+							if ("Option".equals(selectedAction)) {
+								JOptionPane.showMessageDialog(null, "Please choose an action to perform!", "Warning", JOptionPane.WARNING_MESSAGE);
+							} else if ("Approve".equals(selectedAction)) {
+								approveBooking(bookingId, connection);  // Approve the booking
+								enterUser.setText("");
+								refreshRoomBookingTable(model, connection, sql);  // Refresh after action
+							} else if ("Decline".equals(selectedAction)) {
+								declineBooking(bookingId, connection);  // Decline the booking
+								enterUser.setText("");
+								refreshRoomBookingTable(model, connection, sql);  // Refresh after action
+							}
+						} catch (NumberFormatException ex) {
+							JOptionPane.showMessageDialog(null, "Invalid Booking ID format!", "Error", JOptionPane.ERROR_MESSAGE);
+						}
 					}
-				} catch (NumberFormatException ex) {
-					JOptionPane.showMessageDialog(null, "Invalid Booking ID format!", "Error", JOptionPane.ERROR_MESSAGE);
 				}
-			}
-		});
+			});
 
-		frame.add(panel, BorderLayout.SOUTH);
-		frame.setVisible(true);
+			// Add the panel with input fields at the bottom of the frame
+			frame.add(panel, BorderLayout.SOUTH);
+			frame.setVisible(true);
+			
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
 	}
 	
-	private static void declineBooking(int id) {
-        
-        // SQL query to delete a booking from the unapproveBookings table using the 'id' column
-        String sql = "DELETE FROM unapproveBookings WHERE id = ?";
-        
-        try (Connection connection = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/ProgMP?useSSL=false", "root", "Vianca");
-             PreparedStatement stmt = connection.prepareStatement(sql)) {
-            
-            // Set the id parameter to the booking ID that is passed to the method
-            stmt.setInt(1, id);
-            
-            // Execute the delete query
-            int rowsAffected = stmt.executeUpdate();
-            
-            if (rowsAffected > 0) {
-                System.out.println("Booking with ID " + id + " has been declined and removed.");
-            } else {
-                System.out.println("No booking found with ID " + id);
-            }
-            
-        } catch (SQLException e) {
-            System.out.println("Error deleting booking: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
+	private static void declineBooking(int id, Connection connection) {
+		String sql = "DELETE FROM unapproveBookings WHERE id = ?";
+
+		try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+			stmt.setInt(1, id);  // Set the ID parameter
+
+			int rowsAffected = stmt.executeUpdate();  // Execute the delete query
+
+			if (rowsAffected > 0) {
+				JOptionPane.showMessageDialog(null, "Booking with ID " + id + " has been declined.", "Success", JOptionPane.INFORMATION_MESSAGE);
+			} else {
+				JOptionPane.showMessageDialog(null, "No booking found with ID " + id, "Error", JOptionPane.ERROR_MESSAGE);
+			}
+
+		} catch (SQLException e) {
+			JOptionPane.showMessageDialog(null, "Error deleting booking: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+			e.printStackTrace();
+		}
+	}
+
 	
 	//Moves the user from non-approve to the table of all approved bookings
-    private static void approveBooking(int idNumber) {
-		// SQL queries
+    private static void approveBooking(int idNumber, Connection connection) {
 		String selectSql = "SELECT * FROM unapproveBookings WHERE id = ?";
 		String deleteSql = "DELETE FROM unapproveBookings WHERE id = ?";
 		String insertSql = "INSERT INTO approvedBookings (professor_id, booking_date, time_slot, room_name, room_category) VALUES (?, ?, ?, ?, ?)";
 
-		try (Connection connection = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/ProgMP?useSSL=false", "root", "Vianca")) {
-			// Fetch the booking from unapproveBookings table by ID
-			try (PreparedStatement selectStmt = connection.prepareStatement(selectSql)) {
-				selectStmt.setInt(1, idNumber);
-				ResultSet rs = selectStmt.executeQuery();
+		try (PreparedStatement selectStmt = connection.prepareStatement(selectSql)) {
+			selectStmt.setInt(1, idNumber);
+			try (ResultSet rs = selectStmt.executeQuery()) {
 
 				if (rs.next()) {
 					// If the booking exists, move it to approvedBookings table
@@ -501,7 +681,7 @@ public class ProgramAdmin implements ActionListener {
 					String roomName = rs.getString("room_name");
 					String roomCategory = rs.getString("room_category");
 
-					// Insert the booking into approvedBookings table
+					// Insert the booking into the approvedBookings table
 					try (PreparedStatement insertStmt = connection.prepareStatement(insertSql)) {
 						insertStmt.setString(1, professorId);
 						insertStmt.setDate(2, bookingDate);
@@ -528,25 +708,23 @@ public class ProgramAdmin implements ActionListener {
 			JOptionPane.showMessageDialog(null, "Error approving booking: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
 		}
 	}
-	
-	private static void refreshRoomBookingTable(DefaultTableModel model, String sql) {
-		// Clear the existing rows in the table
-		model.setRowCount(0);
+ 
+	private static void refreshRoomBookingTable(DefaultTableModel model, Connection connection, String sql) {
+		model.setRowCount(0);  // Clear existing rows in the table
 
-		try (Connection connection = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/ProgMP?useSSL=false", "root", "Vianca");
-			 Statement stmt = connection.createStatement();
+		try (Statement stmt = connection.createStatement();
 			 ResultSet rs = stmt.executeQuery(sql)) {
 
-			// Fetch data and display it to the table
+			// Fetch data and display it in the table
 			while (rs.next()) {
-				int bookingId = rs.getInt("booking_id");      
-				int professorId = rs.getInt("professor_id"); 
-				String professorFirstName = rs.getString("firstName");  
-				String professorLastName = rs.getString("lastName");    
-				Date bookingDate = rs.getDate("booking_date");  
-				String timeSlot = rs.getString("time_slot");   
-				String roomName = rs.getString("room_name");   
-				String roomCategory = rs.getString("room_category");  
+				int bookingId = rs.getInt("booking_id");
+				int professorId = rs.getInt("professor_id");
+				String professorFirstName = rs.getString("firstName");
+				String professorLastName = rs.getString("lastName");
+				Date bookingDate = rs.getDate("booking_date");
+				String timeSlot = rs.getString("time_slot");
+				String roomName = rs.getString("room_name");
+				String roomCategory = rs.getString("room_category");
 
 				model.addRow(new Object[]{bookingId, professorId, professorFirstName, professorLastName, bookingDate, timeSlot, roomName, roomCategory});
 			}
@@ -604,240 +782,6 @@ public class ProgramAdmin implements ActionListener {
 		frame.setVisible(true);
 	}
 	
-	private static void removeUser(int getIdNum) {
-		// Create the JFrame for the "Remove User" dialog
-		JFrame frame = new JFrame("Remove User");
-		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-		frame.setSize(1000, 400);
-		frame.setLocationRelativeTo(null);
-
-		// Create table model with columns matching the data structure (ID Number, First Name, Last Name, Role)
-		DefaultTableModel model = new DefaultTableModel();
-		model.addColumn("ID Number");
-		model.addColumn("First Name");
-		model.addColumn("Last Name");
-		model.addColumn("Role");
-
-		// Create JTable
-		JTable table = new JTable(model);
-		table.setFillsViewportHeight(true);
-		JScrollPane scrollPane = new JScrollPane(table);
-		frame.add(scrollPane, BorderLayout.CENTER);
-
-		// SQL query to select all users from the users table, excluding the user with the given id and those with "Program Admin" role
-		String sql = "SELECT idNumber, firstName, lastName, role FROM users WHERE idNumber != ? AND role != 'Program Admin'";
-
-		// Refresh table with data
-		try (Connection connection = DatabaseHelper.getConnection();
-			 PreparedStatement statement = connection.prepareStatement(sql)) {
-
-			// Set the user ID parameter to exclude the user with the given id
-			statement.setInt(1, getIdNum());
-
-			try (ResultSet resultSet = statement.executeQuery()) {
-				// Loop through the result set and populate the table model
-				while (resultSet.next()) {
-					int idNumber = resultSet.getInt("idNumber");
-					String firstName = resultSet.getString("firstName");
-					String lastName = resultSet.getString("lastName");
-					String role = resultSet.getString("role");
-					model.addRow(new Object[]{idNumber, firstName, lastName, role});
-				}
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-			JOptionPane.showMessageDialog(null, "Database error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-		}
-
-		// Create a panel for the user input components using GridBagLayout for better control
-		JPanel panel = new JPanel();
-		panel.setLayout(new GridBagLayout()); // Use GridBagLayout for better control
-		GridBagConstraints gbc = new GridBagConstraints();
-		gbc.insets = new Insets(5, 5, 5, 5);  // Add padding between components
-
-		// Label for ID input
-		JLabel userIdLabel = new JLabel("Enter the ID number of the user you want to remove: ");
-		gbc.gridx = 0; // First column
-		gbc.gridy = 0; // First row
-		gbc.anchor = GridBagConstraints.WEST; // Left-align the label
-		panel.add(userIdLabel, gbc);
-
-		// Text field for entering the user ID
-		JTextField userIdField = new JTextField(15);
-		gbc.gridx = 1; // Second column (right after the label)
-		gbc.gridy = 0; // Keep it in the same row as the label
-		gbc.fill = GridBagConstraints.HORIZONTAL; // Allow the text field to fill the available space
-		gbc.anchor = GridBagConstraints.WEST; // Left-align the text field
-		panel.add(userIdField, gbc);
-
-		// Remove User Button
-		JButton removeUserButton = new JButton("Remove User");
-		removeUserButton.setPreferredSize(new Dimension(120, 30));  // Set a smaller button size
-		gbc.gridx = 2; // Third column (right after the text field)
-		gbc.gridy = 0; // Keep it in the same row as the text field
-		gbc.fill = GridBagConstraints.NONE; // Don't allow the button to stretch
-		gbc.anchor = GridBagConstraints.EAST; // Right-align the button
-		panel.add(removeUserButton, gbc);
-
-		// Add the panel with text field and button below the table
-		frame.add(panel, BorderLayout.SOUTH);
-
-		// Add action listener for remove user button
-		removeUserButton.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				if (userIdField.getText().equals("")) {
-					JOptionPane.showMessageDialog(frame, "Please enter a user ID!", "Error", JOptionPane.ERROR_MESSAGE);
-				} 
-				else {
-					try {
-						int userId = Integer.parseInt(userIdField.getText());
-
-						// Check if the user ID exists in the table 
-						boolean userExists = false;
-						
-						for (int i = 0; i < model.getRowCount() && !userExists; i++) {
-							int idNumber = (int) model.getValueAt(i, 0); // Get ID 
-							if (idNumber == userId) {
-								userExists = true;
-							}
-						}
-
-						if (!userExists) {
-							// If user ID doesn't exist in the table, show a warning message
-							JOptionPane.showMessageDialog(frame, "Invalid User ID! Please try again.", "Warning", JOptionPane.WARNING_MESSAGE);
-						} 
-						
-						else {
-							userRemoval(userId);
-
-							// Refresh the table by clearing it and reloading the data
-							model.setRowCount(0);  // Clear existing rows
-
-							// Reload the table data after removal
-							try (Connection connection = DatabaseHelper.getConnection();
-								 PreparedStatement statement = connection.prepareStatement(sql)) {
-								statement.setInt(1, getIdNum()); // Exclude the same user again
-
-								try (ResultSet resultSet = statement.executeQuery()) {
-									while (resultSet.next()) {
-										int idNumber = resultSet.getInt("idNumber");
-										String firstName = resultSet.getString("firstName");
-										String lastName = resultSet.getString("lastName");
-										String role = resultSet.getString("role");
-										model.addRow(new Object[]{idNumber, firstName, lastName, role});
-									}
-								}
-
-							} catch (SQLException ex) {
-								JOptionPane.showMessageDialog(frame, "Error fetching data after user removal: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-							}
-						}
-
-					} catch (NumberFormatException ex) {
-						JOptionPane.showMessageDialog(frame, "Please enter a valid numeric ID!", "Error", JOptionPane.ERROR_MESSAGE);
-					}
-				}
-			}
-		});
-
-		// Make the frame visible
-		frame.setVisible(true);
-	}
-
-
-	private static void userRemoval(int id) {
-		// Catch multiple exceptions (especially SQLException)
-		try (Connection conn = DatabaseHelper.getConnection()) {
-			// Get the id from the users table
-			String sql = "SELECT * FROM users WHERE idNumber = ?";
-			
-			try (PreparedStatement pst = conn.prepareStatement(sql)) {
-				pst.setInt(1, id);
-
-				try (ResultSet rs = pst.executeQuery()) {
-					if (rs.next()) {
-						// If user found, check role
-						String role = rs.getString("role");
-
-						if (role.equals("Professor")) {
-							removeProfessor(id);
-						} else {
-							// Handle other roles like ITS, Security
-							JOptionPane.showMessageDialog(null, "ITS or Security here!");
-						}
-					} else {
-						JOptionPane.showMessageDialog(null, "No user found with that ID.", "Error", JOptionPane.ERROR_MESSAGE);
-					}
-				} catch (SQLException e) {
-					e.printStackTrace();
-					JOptionPane.showMessageDialog(null, "Error occurred while executing query: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-				}
-
-			} catch (SQLException e) {
-				e.printStackTrace();
-				JOptionPane.showMessageDialog(null, "Error preparing SQL statement: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-			}
-
-		} catch (SQLException e) {
-			e.printStackTrace();
-			JOptionPane.showMessageDialog(null, "Error occurred while connecting to the database: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-		}
-	}
-	
-	private static void removeProfessor(int id) {
-		// Using try-with-resources to automatically close the resources
-		Connection conn = null;
-		try {
-			conn = DatabaseHelper.getConnection();
-			conn.setAutoCommit(false);  // Start a transaction
-
-			// First, delete the user from the 'users' table
-			String deleteUserSQL = "DELETE FROM users WHERE idNumber = ?";
-			try (PreparedStatement deleteUserStmt = conn.prepareStatement(deleteUserSQL)) {
-				deleteUserStmt.setInt(1, id);
-				int rowsAffected = deleteUserStmt.executeUpdate();
-
-				if (rowsAffected == 0) {
-					// No user was deleted
-					JOptionPane.showMessageDialog(null, "No professor found with the given ID.", "Error", JOptionPane.ERROR_MESSAGE);
-					conn.rollback();  // Rollback the transaction
-				} else {
-					// Commit the transaction if the deletion from 'users' table is successful
-					conn.commit();
-					JOptionPane.showMessageDialog(null, "Professor and related data successfully removed!", "Success", JOptionPane.INFORMATION_MESSAGE);
-				}
-			}
-
-		} catch (SQLException e) {
-			// Handle SQL exceptions (rollback and show error message)
-			if (conn != null) {
-				try {
-					conn.rollback();  // Rollback the transaction if anything fails
-				} catch (SQLException rollbackException) {
-					rollbackException.printStackTrace(); // Handle rollback exception
-				}
-			}
-
-			// Show error message if any exception occurs
-			JOptionPane.showMessageDialog(null, "Error occurred while removing user: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-
-		} catch (Exception e) {
-			// Catch any other unexpected exceptions (non-SQLExceptions)
-			e.printStackTrace();
-			JOptionPane.showMessageDialog(null, "Unexpected error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-
-		} finally {
-			// Ensure that the connection is closed after use
-			try {
-				if (conn != null) {
-					conn.close();
-				}
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
-		}
-	}
-	
 	private static void displayProfessorsForScheduling() {
 		JFrame frame = new JFrame("Assign Regular Schedule");
 		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -880,7 +824,6 @@ public class ProgramAdmin implements ActionListener {
 		JPanel panel = new JPanel();
 		JButton assignButton = new JButton("Assign Schedule");
 		assignButton.addActionListener(new ActionListener() {
-			@Override
 			public void actionPerformed(ActionEvent e) {
 				int selectedRow = table.getSelectedRow();
 				if (selectedRow != -1) {

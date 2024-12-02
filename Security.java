@@ -13,6 +13,10 @@ public class Security implements DepartmentRequests {
         this.connWrapper = connWrapper;
         this.userId = userId;
     }
+    
+    public int getUserId(){
+        return this.userId;
+    }
 
     @Override
     public void showMainPanel() {
@@ -41,37 +45,51 @@ public class Security implements DepartmentRequests {
         frame.setVisible(true);
     }
 
-    @Override
     public void openRequestsPanel() {
         frame.getContentPane().removeAll();
         JPanel requestPanel = new JPanel(new BorderLayout());
 
+        // Create table with the columns
         JTable requestTable = new JTable();
-        DefaultTableModel tableModel = new DefaultTableModel(new String[]{"ID", "Room", "Issue", "Status", "Responder"}, 0);
+        DefaultTableModel tableModel = new DefaultTableModel(new String[]{"Request ID", "Room", "Issue", "Status", "Responder"}, 0);
         requestTable.setModel(tableModel);
 
-        try (Connection conn = connWrapper.getConnection()) {
-            String query = "SELECT * FROM security_requests WHERE status = 'Pending'";
-            try (PreparedStatement pst = conn.prepareStatement(query);
-                 ResultSet rs = pst.executeQuery()) {
+        // SQL query to get request details and responder's name 
+        String query = "SELECT s.request_id, s.room, s.issue_description, s.status, " +
+                       "CONCAT(a.firstName, ' ', a.lastName) AS responder " +  
+                       "FROM security_requests s " +
+                       "LEFT JOIN users a ON s.accepted_by = a.idNumber " +
+                       "WHERE s.status = 'Pending'";
 
-                while (rs.next()) {
-                    int requestId = rs.getInt("request_id");
-                    String room = rs.getString("room");
-                    String issue = rs.getString("issue_description");
-                    String status = rs.getString("status");
-                    String responder = rs.getString("accepted_by");
-                    tableModel.addRow(new Object[]{requestId, room, issue, status, responder});
-                }
+        try (Connection conn = connWrapper.getConnection();
+             PreparedStatement pst = conn.prepareStatement(query);
+             ResultSet rs = pst.executeQuery()) {
+            
+            // Loop through the result set and add rows to the table
+            while (rs.next()) {
+                int requestId = rs.getInt("request_id");
+                String room = rs.getString("room");  
+                String issue = rs.getString("issue_description");
+                String status = rs.getString("status");
+
+                // Get responder's full name
+                String responder = rs.getString("responder");
+
+                // Add a row to the table model
+                tableModel.addRow(new Object[]{requestId, room, issue, status, responder});
             }
         } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(frame, "Error loading requests: " + ex.getMessage());
+            JOptionPane.showMessageDialog(frame, "Error loading requests: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
 
+        // Add the table to the panel with a scroll pane
         requestPanel.add(new JScrollPane(requestTable), BorderLayout.CENTER);
+        
+        // Create and add action buttons (Accept, Decline, etc.)
         JPanel buttonPanel = createActionButtons(requestTable, tableModel);
         requestPanel.add(buttonPanel, BorderLayout.SOUTH);
 
+        // Add the request panel to the frame and refresh the UI
         frame.add(requestPanel);
         frame.revalidate();
         frame.repaint();
@@ -83,7 +101,7 @@ public class Security implements DepartmentRequests {
         JPanel myRequestsPanel = new JPanel(new BorderLayout());
 
         JTable myRequestsTable = new JTable();
-        DefaultTableModel myTableModel = new DefaultTableModel(new String[]{"ID", "Room", "Issue", "Status", "Responder"}, 0);
+        DefaultTableModel myTableModel = new DefaultTableModel(new String[]{"ID", "Room", "Issue", "Status"}, 0);
         myRequestsTable.setModel(myTableModel);
 
         try (Connection conn = connWrapper.getConnection()) {
@@ -96,8 +114,7 @@ public class Security implements DepartmentRequests {
                         String room = rs.getString("room");
                         String issue = rs.getString("issue_description");
                         String status = rs.getString("status");
-                        String responder = rs.getString("accepted_by");
-                        myTableModel.addRow(new Object[]{requestId, room, issue, status, responder});
+                        myTableModel.addRow(new Object[]{requestId, room, issue, status});
                     }
                 }
             }
@@ -128,6 +145,27 @@ public class Security implements DepartmentRequests {
         }
     }
 
+    private String getCurrentUserName() {
+        String fullName = "none"; //initialize
+        String query = "SELECT firstName, lastName FROM users WHERE idNumber = ?";
+
+        try (Connection conn = connWrapper.getConnection();
+             PreparedStatement pst = conn.prepareStatement(query)) {
+            pst.setInt(1, userId);  // Use the current user ID
+            try (ResultSet rs = pst.executeQuery()) {
+                if (rs.next()) {
+                    String firstName = rs.getString("firstName");
+                    String lastName = rs.getString("lastName");
+                    fullName = firstName + " " + lastName;  // Concatenate first and last name
+                }
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(frame, "Error fetching user name: " + ex.getMessage());
+        }
+
+        return fullName;
+    }
+
     @Override
     public void updateResponder(int requestId, String responder) {
         try (Connection conn = connWrapper.getConnection()) {
@@ -143,80 +181,71 @@ public class Security implements DepartmentRequests {
     }
 
     private JPanel createActionButtons(JTable requestTable, DefaultTableModel tableModel) {
-    JPanel buttonPanel = new JPanel();
-    JButton acceptButton = new JButton("Accept");
-    JButton declineButton = new JButton("Decline");
-    JButton closeButton = new JButton("Close");
+        JPanel buttonPanel = new JPanel();
+        JButton acceptButton = new JButton("Accept");
+        JButton declineButton = new JButton("Decline");
+        JButton closeButton = new JButton("Close");
 
-    acceptButton.addActionListener(e -> {
-        int selectedRow = requestTable.getSelectedRow();
-        if (selectedRow != -1) {
-            int requestId = (int) tableModel.getValueAt(selectedRow, 0);
-            updateRequestStatus(requestId, "Processing");
-            updateResponder(requestId, Integer.toString(userId));
-            tableModel.setValueAt("Processing", selectedRow, 3);
-            tableModel.setValueAt(userId, selectedRow, 4);
-        } else {
-            JOptionPane.showMessageDialog(frame, "Please select a request to accept.");
-        }
-    });
+        acceptButton.addActionListener(e -> {
+            int selectedRow = requestTable.getSelectedRow();
+            if (selectedRow != -1) {
+                int requestId = (int) tableModel.getValueAt(selectedRow, 0);
+                updateRequestStatus(requestId, "Processing");
+                updateResponder(requestId, Integer.toString(userId));
+                tableModel.setValueAt("Processing", selectedRow, 3);
+                tableModel.setValueAt(getCurrentUserName(), selectedRow, 4);
+            } else {
+                JOptionPane.showMessageDialog(frame, "Please select a request to accept.");
+            }
+        });
 
-    declineButton.addActionListener(e -> {
-        int selectedRow = requestTable.getSelectedRow();
-        if (selectedRow != -1) {
-            int requestId = (int) tableModel.getValueAt(selectedRow, 0);
-            updateRequestStatus(requestId, "Declined");
-            tableModel.setValueAt("Declined", selectedRow, 3);
-        } else {
-            JOptionPane.showMessageDialog(frame, "Please select a request to decline.");
-        }
-    });
+        declineButton.addActionListener(e -> {
+            int selectedRow = requestTable.getSelectedRow();
+            if (selectedRow != -1) {
+                int requestId = (int) tableModel.getValueAt(selectedRow, 0);
+                updateRequestStatus(requestId, "Declined");
+                tableModel.setValueAt("Declined", selectedRow, 3);
+            } else {
+                JOptionPane.showMessageDialog(frame, "Please select a request to decline.");
+            }
+        });
 
-    // Correct close action: Dispose the current frame and reopen the main panel
-    closeButton.addActionListener(e -> {
-        frame.dispose(); // Close the current frame
-        showMainPanel(); // Open the main panel in a new frame
-    });
+        closeButton.addActionListener(e -> {
+            frame.dispose();
+            showMainPanel();
+        });
 
-    buttonPanel.add(acceptButton);
-    buttonPanel.add(declineButton);
-    buttonPanel.add(closeButton);
+        buttonPanel.add(acceptButton);
+        buttonPanel.add(declineButton);
+        buttonPanel.add(closeButton);
 
-    return buttonPanel;
-}
+        return buttonPanel;
+    }
 
-private JPanel createCompletionButtons(JTable myRequestsTable, DefaultTableModel myTableModel) {
-    JPanel buttonPanel = new JPanel();
-    JButton completeButton = new JButton("Complete");
-    JButton closeButton = new JButton("Close");
+    private JPanel createCompletionButtons(JTable myRequestsTable, DefaultTableModel myTableModel) {
+        JPanel buttonPanel = new JPanel();
+        JButton markCompletedButton = new JButton("Mark Completed");
+        JButton closeButton = new JButton("Close");
 
-    completeButton.addActionListener(e -> {
-        int selectedRow = myRequestsTable.getSelectedRow();
-        if (selectedRow != -1) {
-            int requestId = (int) myTableModel.getValueAt(selectedRow, 0);
-            String currentStatus = (String) myTableModel.getValueAt(selectedRow, 3);
-
-            if ("Processing".equalsIgnoreCase(currentStatus)) {
+        markCompletedButton.addActionListener(e -> {
+            int selectedRow = myRequestsTable.getSelectedRow();
+            if (selectedRow != -1) {
+                int requestId = (int) myTableModel.getValueAt(selectedRow, 0);
                 updateRequestStatus(requestId, "Completed");
                 myTableModel.setValueAt("Completed", selectedRow, 3);
             } else {
-                JOptionPane.showMessageDialog(frame, "Only requests in 'Processing' status can be completed.");
+                JOptionPane.showMessageDialog(frame, "Please select a request to mark as completed.");
             }
-        } else {
-            JOptionPane.showMessageDialog(frame, "Please select a request to complete.");
-        }
-    });
+        });
 
-    // Correct close action: Dispose the current frame and reopen the main panel
-    closeButton.addActionListener(e -> {
-        frame.dispose(); // Close the current frame
-        showMainPanel(); // Open the main panel in a new frame
-    });
+        closeButton.addActionListener(e -> {
+            frame.dispose();
+            showMainPanel();
+        });
 
-    buttonPanel.add(completeButton);
-    buttonPanel.add(closeButton);
+        buttonPanel.add(markCompletedButton);
+        buttonPanel.add(closeButton);
 
-    return buttonPanel;
-}
-
+        return buttonPanel;
+    }
 }

@@ -10,8 +10,8 @@ public class ShowStatus {
 
     public static void showRoomStatus(int idNum) {
         JFrame frame = new JFrame("Room Status");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(800, 600);  // Adjust size as needed
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        frame.setSize(800, 600);  
         frame.setLayout(new BorderLayout());
 
         // Table panel
@@ -27,13 +27,13 @@ public class ShowStatus {
         JScrollPane scrollPane = new JScrollPane(table);
         frame.add(scrollPane, BorderLayout.CENTER);
 
-        // Load room bookings
+        // Get room bookings
         loadRoomStatus(model, idNum);
 
         frame.setVisible(true);  // Display the frame
     }
 
-    // Method to load the professor's room bookings into the table (both approved and unapproved)
+    // Method to fetch the professor's room bookings into the table (both approved and unapproved)
     private static void loadRoomStatus(DefaultTableModel model, int idNum) {
         String sql = "SELECT id, booking_date, time_slot, room_name, room_category, 'Approved' AS status FROM approvedBookings WHERE professor_id = ? "
                    + "UNION "

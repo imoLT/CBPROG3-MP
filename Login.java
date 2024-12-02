@@ -11,65 +11,67 @@ public class Login implements ActionListener {
     private static JFrame frame;
 
     public void actionPerformed(ActionEvent e) {
-        String enteredPassword = new String(password.getPassword());
+		String enteredPassword = new String(password.getPassword());
 
-        if (idNum.getText().equals("") || enteredPassword.equals("")) {
-            if (idNum.getText().equals("") && enteredPassword.equals("")) {
-                JOptionPane.showMessageDialog(null, "Please enter your ID number and password.");
-            } else if (idNum.getText().equals("")) {
-                JOptionPane.showMessageDialog(null, "ID number field is empty. Please try again!");
-            } else {
-                JOptionPane.showMessageDialog(null, "Password field is empty. Please enter a password and try again!");
-            }
-        } else {
-            // Create a DatabaseConnectionWrapper instance first
-            DatabaseConnectionWrapper connWrapper = new DatabaseConnectionWrapper("jdbc:mysql://127.0.0.1:3306/ProgMP?useSSL=false", "root", "Vianca");
+		if (idNum.getText().equals("") || enteredPassword.equals("")) {
+			if (idNum.getText().equals("") && enteredPassword.equals("")) {
+				JOptionPane.showMessageDialog(null, "Please enter your ID number and password.");
+			} else if (idNum.getText().equals("")) {
+				JOptionPane.showMessageDialog(null, "ID number field is empty. Please try again!");
+			} else {
+				JOptionPane.showMessageDialog(null, "Password field is empty. Please enter a password and try again!");
+			}
+		} else {
+			
+			DatabaseConnectionWrapper connWrapper = new DatabaseConnectionWrapper("jdbc:mysql://127.0.0.1:3306/ProgMP?useSSL=false", "root", "Vianca");
 
-            try (Connection conn = connWrapper.getConnection()) {
-                String sql = "SELECT * FROM users WHERE idnumber = ? AND password = ?";
-                try (PreparedStatement pst = conn.prepareStatement(sql)) {
-                    pst.setString(1, idNum.getText());
-                    pst.setString(2, enteredPassword);
+			try (Connection conn = connWrapper.getConnection()) {
+				String sql = "SELECT * FROM users WHERE idnumber = ? AND password = ?";
+				try (PreparedStatement pst = conn.prepareStatement(sql)) {
+					pst.setString(1, idNum.getText());
+					pst.setString(2, enteredPassword);
 
-                    ResultSet rs = pst.executeQuery();
-                    if (rs.next()) {
-                        String role = rs.getString("role");
-                        if (role.equals("Program Admin")) {
-                            frame.dispose();
-                            ProgramAdmin admin = new ProgramAdmin(Integer.parseInt(idNum.getText()));
-                            admin.adminMenu();
-                        } else if (role.equals("Professor")) {
-                            frame.dispose();
-                            Professor professor = new Professor(Integer.parseInt(idNum.getText()));
-                        } else if (role.equals("ITS")) {
-                            frame.dispose();
-                            ITS its = new ITS(connWrapper, Integer.parseInt(idNum.getText())); // Pass connWrapper and userId
-                            its.showMainPanel(); // Show the ITS Panel after successful login
-                        } else if (role.equals("Security")) {
-                            frame.dispose();
-                            Security security = new Security(connWrapper, Integer.parseInt(idNum.getText())); // Pass connWrapper and userId
-                            security.showMainPanel(); // Show the Security Panel after successful login
+					ResultSet rs = pst.executeQuery();
+					if (rs.next()) {
+						String role = rs.getString("role");
+
+						if (role.equals("Program Admin")) {
+							frame.dispose();
+							ProgramAdmin admin = new ProgramAdmin(Integer.parseInt(idNum.getText()));
+							admin.adminMenu();
+						} else if (role.equals("Professor")) {
+							frame.dispose();
+							Professor professor = new Professor(Integer.parseInt(idNum.getText()));
+						} else if (role.equals("ITS")) {
+							frame.dispose();
+							ITS its = new ITS(connWrapper, Integer.parseInt(idNum.getText()));
+							its.showMainPanel();
+						} else if (role.equals("Security Office")) {
+							frame.dispose();
+							Security security = new Security(connWrapper, Integer.parseInt(idNum.getText()));
+							security.showMainPanel(); 
 						}
 					} else {
-                        String nonApprovedSql = "SELECT * FROM nonApprovedUsers WHERE id_number = ? AND password = ?";
-                        try (PreparedStatement pstNonApproved = conn.prepareStatement(nonApprovedSql)) {
-                            pstNonApproved.setString(1, idNum.getText());
-                            pstNonApproved.setString(2, enteredPassword);
+						String nonApprovedSql = "SELECT * FROM nonApprovedUsers WHERE id_number = ? AND password = ?";
+						try (PreparedStatement pstNonApproved = conn.prepareStatement(nonApprovedSql)) {
+							pstNonApproved.setString(1, idNum.getText());
+							pstNonApproved.setString(2, enteredPassword);
 
-                            ResultSet rsNonApproved = pstNonApproved.executeQuery();
-                            if (rsNonApproved.next()) {
-                                JOptionPane.showMessageDialog(null, "Your account is still pending for approval! Please try again later.");
-                            } else {
-                                JOptionPane.showMessageDialog(null, "Invalid ID or password. Please try again.");
-                            }
-                        }
-                    }
-                }
-            } catch (SQLException ex) {
-                JOptionPane.showMessageDialog(null, "Error connecting to database: " + ex.getMessage());
-            }
-        }
-    }
+							ResultSet rsNonApproved = pstNonApproved.executeQuery();
+							if (rsNonApproved.next()) {
+								JOptionPane.showMessageDialog(null, "Your account is still pending for approval! Please try again later.");
+							} else {
+								JOptionPane.showMessageDialog(null, "Invalid ID or password. Please try again.");
+							}
+						}
+					}
+				}
+			} catch (SQLException ex) {
+				JOptionPane.showMessageDialog(null, "Error connecting to database: " + ex.getMessage());
+			}
+		}
+	}
+
 
     public static void main(String[] args) {
         frame = new JFrame("Login");
@@ -82,10 +84,10 @@ public class Login implements ActionListener {
         frame.add(panel);
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridx = 0;  // Start from the first column
-        gbc.gridy = 0;  // Start from the first row
-        gbc.anchor = GridBagConstraints.WEST;  // Align components to the left
-        gbc.insets = new Insets(5, 5, 5, 5);  // Add some space between components
+        gbc.gridx = 0;
+        gbc.gridy = 0;  
+        gbc.anchor = GridBagConstraints.WEST; 
+        gbc.insets = new Insets(5, 5, 5, 5);  
 
 		// id label and textfield
         idNumLabel = new JLabel("ID Number: ");
@@ -122,7 +124,7 @@ public class Login implements ActionListener {
         cancelButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 frame.dispose();  
-                Start.main(new String[]{});  // Navigate to main screen
+                Start.main(new String[]{}); 
             }
         });		
 

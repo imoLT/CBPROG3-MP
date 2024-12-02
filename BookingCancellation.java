@@ -8,18 +8,16 @@ import java.util.Vector;
 
 public class BookingCancellation {
 
-    // Static method to show the booking cancellation UI
     public static void showCancellation(int idNum) {
         JFrame frame = new JFrame("Booking Cancellation");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(600, 500);  // Set an appropriate size
-        frame.setLayout(new BorderLayout());  // Use BorderLayout for the main frame
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        frame.setSize(600, 500); 
+        frame.setLayout(new BorderLayout());  
 
-        // Main panel to hold the table and the bottom panel
         JPanel panel = new JPanel();
         panel.setLayout(new BorderLayout());  
 
-        // Table panel
+        // Table 
         DefaultTableModel model = new DefaultTableModel();
         model.addColumn("Reservation ID");
         model.addColumn("Reserved On");
@@ -31,7 +29,7 @@ public class BookingCancellation {
         JScrollPane scrollPane = new JScrollPane(table);
         panel.add(scrollPane, BorderLayout.CENTER);  
 
-        // Create a panel for label, text field, and button at the bottom
+        // Create a panel for label, text field, and button at the bottom of the tab;e
         JPanel bottomPanel = new JPanel();
         bottomPanel.setLayout(new GridBagLayout()); 
         GridBagConstraints gbc = new GridBagConstraints();
@@ -64,7 +62,6 @@ public class BookingCancellation {
         frame.setVisible(true);  
     }
 
-    // Handle the booking cancellation action
     private static void handleCancelBooking(ActionEvent e, JTextField enterId, JFrame frame, int idNum, JTable table) {
         String enteredId = enterId.getText();  
             
@@ -121,10 +118,10 @@ public class BookingCancellation {
              PreparedStatement stmt = connection.prepareStatement(sql)) {
             
             stmt.setInt(1, reservationId);
-            stmt.setInt(2, idNum);  // Ensure that only the professor who made the reservation can cancel it
+            stmt.setInt(2, idNum);  // Only the id who made the reservation can cancel
             
             int rowsAffected = stmt.executeUpdate();
-            return rowsAffected > 0;  // Return true if the reservation was cancelled
+            return rowsAffected > 0;  // The booking is cancelled if more than one row is affected
         } catch (SQLException ex) {
             JOptionPane.showMessageDialog(null, "Error cancelling booking: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             return false;

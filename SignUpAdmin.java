@@ -14,7 +14,7 @@ public class SignUpAdmin extends AbstractSignUp implements ActionListener {
         frame = new JFrame("Sign-Up a New Admin");
         JPanel panel = new JPanel(new GridBagLayout());
         frame.setSize(500, 500);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         frame.setLocationRelativeTo(null);
         frame.add(panel);
 
@@ -90,7 +90,7 @@ public class SignUpAdmin extends AbstractSignUp implements ActionListener {
                idNumField.getText().length() == 8;
     }
 
-    public void actionPerformed(ActionEvent e) {
+    public void actionPerformed(ActionEvent e){
         char[] password = passwordField.getPassword();
         String firstName = firstNameField.getText();
         String lastName = lastNameField.getText();
