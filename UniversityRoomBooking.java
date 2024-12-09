@@ -462,25 +462,38 @@ public class UniversityRoomBooking {
 
 
     // Method to check if a room is booked for a given date and time slot
-    private static boolean isRoomBooked(LocalDate date, String timeSlot, String room, String building) {
-        String checkQuery = "SELECT COUNT(*) FROM approvedBookings WHERE booking_date = ? AND time_slot = ? AND room_name = ? AND building = ?";
-        try (Connection conn = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/ProgMP?useSSL=false", "root", "Vianca");
-             PreparedStatement pstmt = conn.prepareStatement(checkQuery)) {
-    
-            pstmt.setDate(1, Date.valueOf(date));  // Using booking_date column
-            pstmt.setString(2, timeSlot);
-            pstmt.setString(3, room);
-            pstmt.setString(4, building);
-            ResultSet rs = pstmt.executeQuery();
-            if (rs.next() && rs.getInt(1) > 0) {
-                return true; // Room is booked
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-    
+	private static boolean isRoomBooked(LocalDate date, String timeSlot, String room, String building) {
+		// Query to check both the approvedBookings and regularSchedules tables
+		String checkQuery = 
+			"SELECT COUNT(*) FROM (" +
+			"    SELECT 1 FROM approvedBookings WHERE booking_date = ? AND time_slot = ? AND room_name = ? AND building = ?" +
+			"    UNION" +
+			"    SELECT 1 FROM regularSchedules WHERE FIND_IN_SET(?, schedule_dates) > 0 AND time_slot = ? AND room_name = ?" +
+			") AS combinedBookings";
+
+		try (Connection conn = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/ProgMP?useSSL=false", "root", "Vianca");
+			 PreparedStatement pstmt = conn.prepareStatement(checkQuery)) {
+
+			// For approvedBookings table
+			pstmt.setDate(1, Date.valueOf(date));  // Using booking_date column for approvedBookings
+			pstmt.setString(2, timeSlot);
+			pstmt.setString(3, room);
+			pstmt.setString(4, building);
+
+			// For regularSchedules table
+			pstmt.setString(5, date.toString());  // Converting date to string for use with FIND_IN_SET
+			pstmt.setString(6, timeSlot);
+			pstmt.setString(7, room);
+
+			ResultSet rs = pstmt.executeQuery();
+			if (rs.next() && rs.getInt(1) > 0) {
+				return true; // Room is booked in either of the tables
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return false;
+	}
     
     public static class RoomBooking {
 		private LocalDate date;

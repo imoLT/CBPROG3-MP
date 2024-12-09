@@ -37,7 +37,6 @@ public class RoomScheduling {
 	}
 
 	public static void roomBookMain(int idNum) {
-		// Delegate to the new method without using a callback
 		roomBookMainWithCallback(idNum, null);
 	}
 
@@ -416,22 +415,33 @@ public class RoomScheduling {
 		JButton bookButton = new JButton("Book Room");
 		
 		bookButton.addActionListener(e -> {
-			int selectedRow = roomTable.getSelectedRow();
-			if (selectedRow != -1 && !selectedDate.isEmpty()) {
-				String roomName = (String) tableModel.getValueAt(selectedRow, 0);
-				String timeSlots = timeSlot;
-				try {
-					RoomBooking.insertRegularSchedule(idNum, selectedDate, timeSlots, roomName);
-					JOptionPane.showMessageDialog(roomFrame, "Regular schedule added successfully.");
-					roomFrame.dispose();
-				} catch (Exception ex) {
-					JOptionPane.showMessageDialog(roomFrame, "An error occurred. Please try again.");
-					ex.printStackTrace();
-				}
-			} else {
-				JOptionPane.showMessageDialog(roomFrame, "Please select a room and at least one date.");
-			}
-		});
+    int selectedRow = roomTable.getSelectedRow();
+    if (selectedRow != -1 && !selectedDate.isEmpty()) {
+        String roomName = (String) tableModel.getValueAt(selectedRow, 0);
+        String timeSlots = timeSlot;
+        try {
+            RoomBooking.insertRegularSchedule(idNum, selectedDate, timeSlots, roomName);
+            int option = JOptionPane.showConfirmDialog(
+                roomFrame,
+                "Schedule added successfully. Do you want to add another schedule?",
+                "Add More Schedules",
+                JOptionPane.YES_NO_OPTION
+            );
+            if (option == JOptionPane.YES_OPTION) {
+                roomFrame.dispose();
+                openCalendar(LocalDate.now().getMonthValue(), idNum);
+            } else {
+                roomFrame.dispose();
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(roomFrame, "An error occurred. Please try again.");
+            ex.printStackTrace();
+        }
+    } else {
+        JOptionPane.showMessageDialog(roomFrame, "Please select a room and at least one date.");
+    }
+});
+
 		
 		JPanel buttonPanel = new JPanel(new FlowLayout());
 		buttonPanel.add(bookButton);
@@ -528,55 +538,82 @@ public class RoomScheduling {
 		}
 
 	public static void insertRegularSchedule(int idNum, List<LocalDate> dates, String timeSlot, String roomName) {
-		String datesString = dates.stream()
-		.map(LocalDate::toString)
-		.collect(Collectors.joining(",")); // Convert dates to comma-separated string
+    String datesString = dates.stream()
+                              .map(LocalDate::toString)
+                              .collect(Collectors.joining(",")); // Convert dates to comma-separated string
 
-		// Query to check if a schedule exists for the professor
-		String checkQuery = "SELECT id FROM regularSchedules WHERE professor_id = ?";
-		// Query to update an existing schedule by ID
-		String updateQuery = "UPDATE regularSchedules SET schedule_dates = ?, time_slot = ?, room_name = ? WHERE id = ?";
-		// Query to insert a new schedule
-		String insertQuery = "INSERT INTO regularSchedules (professor_id, professor_name, schedule_dates, time_slot, room_name) " +
-		   "VALUES (?, (SELECT CONCAT(firstName, ' ', lastName) FROM users WHERE idNumber = ?), ?, ?, ?)";
+    // Query to check if a schedule exists for the professor
+    String checkQuery = "SELECT id FROM regularSchedules WHERE professor_id = ?";
+    // Query to update an existing schedule by ID
+    String updateQuery = "UPDATE regularSchedules SET schedule_dates = ?, time_slot = ?, room_name = ? WHERE id = ?";
+    // Query to insert a new schedule
+    String insertQuery = "INSERT INTO regularSchedules (professor_id, professor_name, schedule_dates, time_slot, room_name) " +
+           "VALUES (?, (SELECT CONCAT(firstName, ' ', lastName) FROM users WHERE idNumber = ?), ?, ?, ?)";
 
-		try (Connection conn = DatabaseHelper.getConnection()) {
-			// Check if the schedule already exists for the professor
-			int scheduleId = -1; // Placeholder for the existing schedule ID
-			try (PreparedStatement checkStmt = conn.prepareStatement(checkQuery)) {
-				checkStmt.setInt(1, idNum);
-				try (ResultSet rs = checkStmt.executeQuery()) {
-					if (rs.next()) {
-					scheduleId = rs.getInt("id"); // Get the ID of the existing record
-					}
-				}
-			}
+    try (Connection conn = DatabaseHelper.getConnection()) {
+        // Check if the schedule already exists for the professor
+        int scheduleId = -1; // Placeholder for the existing schedule ID
+        try (PreparedStatement checkStmt = conn.prepareStatement(checkQuery)) {
+            checkStmt.setInt(1, idNum);
+            try (ResultSet rs = checkStmt.executeQuery()) {
+                if (rs.next()) {
+                    scheduleId = rs.getInt("id"); // Get the ID of the existing record
+                }
+            }
+        }
 
-			if (scheduleId != -1) {
-				// Update the existing schedule using its ID
-				try (PreparedStatement updateStmt = conn.prepareStatement(updateQuery)) {
-					updateStmt.setString(1, datesString);
-					updateStmt.setString(2, timeSlot);
-					updateStmt.setString(3, roomName);
-					updateStmt.setInt(4, scheduleId);
-					updateStmt.executeUpdate();
-					System.out.println("Regular schedule updated successfully.");
-				}
-			} else {
-				// Insert a new schedule if no existing schedule is found
-				try (PreparedStatement insertStmt = conn.prepareStatement(insertQuery)) {
-					insertStmt.setInt(1, idNum);
-					insertStmt.setInt(2, idNum);
-					insertStmt.setString(3, datesString);
-					insertStmt.setString(4, timeSlot);
-					insertStmt.setString(5, roomName);
-					insertStmt.executeUpdate();
-					System.out.println("Regular schedule inserted successfully.");
-				}
-			}
-		} catch (SQLException e) {
-		System.err.println("Error handling regular schedule.");
-		e.printStackTrace();}
-		}
+        if (scheduleId != -1) {
+            // Update the existing schedule using its ID
+            try (PreparedStatement updateStmt = conn.prepareStatement(updateQuery)) {
+                updateStmt.setString(1, datesString);
+                updateStmt.setString(2, timeSlot);
+                updateStmt.setString(3, roomName);
+                updateStmt.setInt(4, scheduleId);
+                updateStmt.executeUpdate();
+                System.out.println("Regular schedule updated successfully.");
+            }
+        }
+
+        // **New Logic to Allow Multiple Schedules**
+        // Always insert a new schedule for this professor, regardless of existing entries
+        try (PreparedStatement insertStmt = conn.prepareStatement(insertQuery)) {
+            insertStmt.setInt(1, idNum);
+            insertStmt.setInt(2, idNum);
+            insertStmt.setString(3, datesString);
+            insertStmt.setString(4, timeSlot);
+            insertStmt.setString(5, roomName);
+            insertStmt.executeUpdate();
+            System.out.println("New schedule inserted successfully.");
+        }
+
+    } catch (SQLException e) {
+        System.err.println("Error handling regular schedule.");
+        e.printStackTrace();
+    }
+}
+
 	}
+	public static List<String[]> fetchSchedulesForProfessor(int professorId) {
+    String query = "SELECT schedule_dates, time_slot, room_name FROM regularSchedules WHERE professor_id = ?";
+    List<String[]> schedules = new ArrayList<>();
+
+    try (Connection conn = DatabaseHelper.getConnection();
+         PreparedStatement stmt = conn.prepareStatement(query)) {
+
+        stmt.setInt(1, professorId);
+        try (ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                String dates = rs.getString("schedule_dates");
+                String timeSlot = rs.getString("time_slot");
+                String roomName = rs.getString("room_name");
+                schedules.add(new String[]{dates, timeSlot, roomName});
+            }
+        }
+    } catch (SQLException e) {
+        System.err.println("Error fetching schedules.");
+        e.printStackTrace();
+    }
+    return schedules;
+}
+
 }

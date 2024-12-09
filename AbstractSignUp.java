@@ -5,7 +5,6 @@ abstract class AbstractSignUp {
     public abstract void signUpMain();        
     public abstract boolean isInputValid(); 
 
-    // Check if ID exists in users or nonApprovedUsers (ID as an int)
     protected boolean idExist(int idNumber) { 
         try (Connection connection = DatabaseHelper.getConnection()) {
             // Check if the ID exists in the 'users' table

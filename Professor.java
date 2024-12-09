@@ -15,6 +15,7 @@ public class Professor extends UniversityRoomBooking implements ActionListener {
     private JLabel roomLabel, issueLabel, issueDetailLabel, roomLabelS, issueLabelS, SissueDetailLabel;
     private JComboBox<String> issueDropdown, issueDropdownS;
     private Connection conn;
+	
 
     public Professor(int idNum){
         this.idNum = idNum;
@@ -137,18 +138,34 @@ public class Professor extends UniversityRoomBooking implements ActionListener {
 
 		// Issue label and dropdown
 		issueLabel = new JLabel("Issue Description:");
-		issueDropdown = new JComboBox<>(new String[]{"Projector assistance", "OS problems", "Installing of applications", "Others: (Please specify)"});
-		issueDropdown.addActionListener(this);
+		issueDropdownS = new JComboBox<>(new String[]{"Projector assistance", "OS problems", "Installing of applications", "Others: (Please specify)"});
+		issueDropdownS.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				// Check if the "Others" option is selected
+				String selectedIssue = (String) issueDropdownS.getSelectedItem();
+				if ("Others: (Please specify)".equals(selectedIssue)) {
+					// Show the issue detail field and label if "Others" is selected
+					SissueDetailField.setVisible(true);
+					SissueDetailLabel.setVisible(true);
+				} else {
+					// Hide the issue detail field and label for other options
+					SissueDetailField.setVisible(false);
+					SissueDetailLabel.setVisible(false);
+				}
+			}
+		});
+
 		gbc.gridx = 0; gbc.gridy = 1; itsPanel.add(issueLabel, gbc);
-		gbc.gridx = 1; gbc.gridy = 1; itsPanel.add(issueDropdown, gbc);
+		gbc.gridx = 1; gbc.gridy = 1; itsPanel.add(issueDropdownS, gbc);
 
 		// Issue details label and text field (visible only for 'Others' option)
-		issueDetailLabel = new JLabel("Please specify the issue:");
-		issueDetailField = new JTextField(15);
-		issueDetailField.setVisible(false);
-		issueDetailLabel.setVisible(false);
-		gbc.gridx = 0; gbc.gridy = 2; itsPanel.add(issueDetailLabel, gbc);
-		gbc.gridx = 1; gbc.gridy = 2; itsPanel.add(issueDetailField, gbc);
+		SissueDetailLabel = new JLabel("Please specify the issue:");
+		SissueDetailField = new JTextField(15);
+		SissueDetailField.setVisible(false);
+		SissueDetailLabel.setVisible(false);
+		gbc.gridx = 0; gbc.gridy = 2; itsPanel.add(SissueDetailLabel, gbc);
+		gbc.gridx = 1; gbc.gridy = 2; itsPanel.add(SissueDetailField, gbc);
 
 		// Submit button for ITS request
 		submitITSRequestBtn = new JButton("Submit ITS Request");
@@ -156,6 +173,7 @@ public class Professor extends UniversityRoomBooking implements ActionListener {
 		submitITSRequestBtn.addActionListener(this);
 		gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2; itsPanel.add(submitITSRequestBtn, gbc);
 	}
+
 
 	private void setupSecurityPanel(JPanel securityPanel) {
 		GridBagConstraints gbc = new GridBagConstraints();
@@ -243,16 +261,15 @@ public class Professor extends UniversityRoomBooking implements ActionListener {
 
 	
 	private void submitITSRequest() {
-		String issueDescription = (String) issueDropdown.getSelectedItem();
+		String SissueDetailLabel = (String) issueDropdownS.getSelectedItem();
 
-		// Use textfield for "Others"
-		if (issueDescription.equals("Others: (Please specify)")) {
-			issueDescription = issueDetailField.getText();
+
+		if (SissueDetailLabel.equals("Others: (Please specify)")) {
+			SissueDetailLabel = SissueDetailField.getText();
 		}
 
-		// Validate room selection and issue description
-		String room = (String) roomFieldITS.getSelectedItem();  // Get the selected room from the dropdown
-		if (room == null || room.equals("Select a room") || issueDescription.isEmpty()) {
+		String room = (String) roomFieldITS.getSelectedItem();
+		if (room == null || room.equals("Select a room") || SissueDetailLabel.isEmpty()) {
 			if (room == null || room.equals("Select a room")) {
 				JOptionPane.showMessageDialog(frame, "Please select a room!", "Error", JOptionPane.ERROR_MESSAGE);
 			} else {
@@ -262,16 +279,15 @@ public class Professor extends UniversityRoomBooking implements ActionListener {
 			try {
 				String query = "INSERT INTO its_requests (room, issue_description, status) VALUES (?, ?, 'Pending')";
 				try (PreparedStatement pst = conn.prepareStatement(query)) {
-					pst.setString(1, room);  // Pass the selected room
-					pst.setString(2, issueDescription);  // Pass the issue description
-					pst.executeUpdate();  // Execute the insert query
+					pst.setString(1, room); 
+					pst.setString(2, SissueDetailLabel);
+					pst.executeUpdate();
 
 					JOptionPane.showMessageDialog(frame, "ITS request submitted successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
 
-					// Reset fields after submission
 					roomFieldITS.setSelectedIndex(0); 
-					issueDropdown.setSelectedIndex(0);  
-					issueDetailField.setText(""); 
+					issueDropdownS.setSelectedIndex(0);  
+					SissueDetailField.setText(""); 
 				}
 			} catch (SQLException ex) {
 				ex.printStackTrace();
@@ -283,13 +299,12 @@ public class Professor extends UniversityRoomBooking implements ActionListener {
 	private void submitSecRequest() {
 		String issueDescription = (String) issueDropdown.getSelectedItem();
 
-		// Use textfield for "Others"
+
 		if (issueDescription.equals("Others: (Please specify)")) {
 			issueDescription = issueDetailField.getText();
 		}
 
-		// Validate room selection and issue description
-		String room = (String) roomField.getSelectedItem();  // Get the selected room from the dropdown
+		String room = (String) roomField.getSelectedItem();
 		if (room == null || room.equals("Select a room") || issueDescription.isEmpty()) {
 			if (room == null || room.equals("Select a room")) {
 				JOptionPane.showMessageDialog(frame, "Please select a room!", "Error", JOptionPane.ERROR_MESSAGE);
@@ -300,13 +315,12 @@ public class Professor extends UniversityRoomBooking implements ActionListener {
 			try {
 				String query = "INSERT INTO security_requests (room, issue_description, status) VALUES (?, ?, 'Pending')";
 				try (PreparedStatement pst = conn.prepareStatement(query)) {
-					pst.setString(1, room);  // Pass the selected room
-					pst.setString(2, issueDescription);  // Pass the issue description
-					pst.executeUpdate();  // Execute the insert query
+					pst.setString(1, room);  
+					pst.setString(2, issueDescription);  
+					pst.executeUpdate();
 
 					JOptionPane.showMessageDialog(frame, "Security request submitted successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
 
-					// Reset fields after submission
 					roomField.setSelectedIndex(0); 
 					issueDropdown.setSelectedIndex(0);  
 					issueDetailField.setText(""); 
@@ -317,19 +331,6 @@ public class Professor extends UniversityRoomBooking implements ActionListener {
 			}
 		}
 	}
-	
-	private boolean isRoomValid(String roomName) {
-        String roomQuery = "SELECT * FROM rooms WHERE room_name = ?";
-        try (PreparedStatement pst = conn.prepareStatement(roomQuery)) {
-            pst.setString(1, roomName);
-            ResultSet rs = pst.executeQuery();
-            return rs.next();
-        } catch (SQLException ex) {
-            ex.printStackTrace();
-            JOptionPane.showMessageDialog(frame, "Error validating room: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-            return false;
-        }
-    }
 
 	public void actionPerformed(ActionEvent e) {
 		// Get the source of the event
@@ -384,7 +385,7 @@ public class Professor extends UniversityRoomBooking implements ActionListener {
 	}
 
     private void bookRoom() {
-        UniversityRoomBooking.roomBookMain(getIdNum());
+		UniversityRoomBooking.roomBookMain(getIdNum());
     }
 
     private void cancelBooking() {
@@ -402,30 +403,56 @@ public class Professor extends UniversityRoomBooking implements ActionListener {
 
     // Display professor's regular schedule in a table
     private void displayRegularSched(int professorId) {
-        // Fetch the professor's regular schedule
-        List<Schedule> scheduleList = getRegularSchedule(professorId);
-		
-		if (scheduleList.isEmpty()) {
-				JOptionPane.showMessageDialog(frame, "Admin is yet to set up your regular schedule. Please check again later.", "No Schedule Available", JOptionPane.INFORMATION_MESSAGE);
-		}
-		else {
-			// Create the table
-			String[] columnNames = {"Day", "Time Slot", "Room Name"};
-			
-			Object[][] data = new Object[scheduleList.size()][3];
-			
-			for (int i = 0; i < scheduleList.size(); i++) {
-				Schedule schedule = scheduleList.get(i);
-				data[i][0] = schedule.getDay();
-				data[i][1] = schedule.getTimeSlot();
-				data[i][2] = schedule.getRoomName();
-			}
+		// Fetch the professor's regular schedule
+		List<Schedule> scheduleList = getRegularSchedule(professorId);
 
-			// Create the JTable with data and column names
-			JTable scheduleTable = new JTable(data, columnNames);
-			JScrollPane scrollPane = new JScrollPane(scheduleTable);
+		if (scheduleList.isEmpty()) {
+			JOptionPane.showMessageDialog(frame, "Admin is yet to set up your regular schedule. Please check again later.", "No Schedule Available", JOptionPane.INFORMATION_MESSAGE);
+			return;  // Exit the method if no schedule is found
 		}
+
+		// Create the table columns
+		String[] columnNames = {"Day", "Time Slot", "Room Name"};
+		
+		// Prepare data for JTable
+		Object[][] data = new Object[scheduleList.size()][3];
+		
+		for (int i = 0; i < scheduleList.size(); i++) {
+			Schedule schedule = scheduleList.get(i);
+			data[i][0] = schedule.getDay();
+			data[i][1] = schedule.getTimeSlot();
+			data[i][2] = schedule.getRoomName();
+		}
+
+		// Create JTable with data and column names
+		JTable scheduleTable = new JTable(data, columnNames);
+		
+		// Add the JTable inside a JScrollPane
+		JScrollPane scrollPane = new JScrollPane(scheduleTable);
+
+		// Set the scroll pane to a specific size, you can adjust it as per your requirements
+		scheduleTable.setFillsViewportHeight(true);  // Ensures the table takes up available space
+		scrollPane.setPreferredSize(new Dimension(500, 200));  // Set a preferred size for the table
+
+		// Create a new frame for displaying the schedule
+		JFrame scheduleFrame = new JFrame("Professor's Regular Schedule");
+
+		// Add the JScrollPane to the frame
+		JPanel panel = new JPanel();  // Create a panel to hold the scroll pane
+		panel.setLayout(new BorderLayout());  // Use BorderLayout to place it properly
+		panel.add(scrollPane, BorderLayout.CENTER);  // Add the scroll pane to the center of the panel
+
+		// Add the panel to the new frame
+		scheduleFrame.add(panel);
+
+		// Set the properties of the frame
+		scheduleFrame.setSize(600, 300);   // Set the frame size (you can adjust this)
+		scheduleFrame.setLocationRelativeTo(null);  // Center the frame on the screen
+		scheduleFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);  // Dispose of the frame when it's closed
+		scheduleFrame.setVisible(true);   // Make the frame visible
 	}
+
+
 
     // Fetches the professor's regular schedule from the database
     private List<Schedule> getRegularSchedule(int professorId) {

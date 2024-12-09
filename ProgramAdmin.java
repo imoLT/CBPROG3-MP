@@ -23,10 +23,13 @@ public class ProgramAdmin implements ActionListener {
     private static JComboBox<String> bookingActionDropdown;
 	private static DefaultTableModel model = new DefaultTableModel();
 	
+	private static DatabaseConnectionWrapper dbConnectionWrapper;
+	
 	private static int idNum;
 	
 	public ProgramAdmin(int idNum) {
         this.idNum = idNum;
+		dbConnectionWrapper = new DatabaseConnectionWrapper("jdbc:mysql://127.0.0.1:3306/ProgMP?useSSL=false", "root", "Vianca");
     }
     
     public static int getIdNum(){
@@ -133,7 +136,7 @@ public class ProgramAdmin implements ActionListener {
         bookButton.setName("bookButton");
         panel.add(bookButton, gbc);
 
-        // View Room Availability
+        // View Rooms
         gbc.gridx = 0;
         gbc.gridy = 6;
         roomButton = new JButton("View Rooms");
@@ -565,113 +568,106 @@ public class ProgramAdmin implements ActionListener {
 	}
 	
 	private static void DisplayRoomBookRequests() {
-		// Establish connection to the database
-		try (Connection connection = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/ProgMP?useSSL=false", "root", "Vianca")) {
-			
-			// Create frame for displaying room booking requests
-			JFrame frame = new JFrame("Reservation Requests");
-			frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-			frame.setSize(600, 400);
-			frame.setLocationRelativeTo(null);
+		JFrame frame = new JFrame("Reservation Requests");
+		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+		frame.setSize(600, 400);
+		frame.setLocationRelativeTo(null);
 
-			// Define the column names for the room booking table
-			String[] columnNames = {"Booking ID", "Professor ID", "First Name", "Last Name", "Booking Date", "Time Slot", "Room Name", "Room Category"};
+		String[] columnNames = {"Booking ID", "Professor ID", "First Name", "Last Name", "Booking Date", "Time Slot", "Room Name", "Room Category"};
 
-			// DefaultTableModel with empty data
-			DefaultTableModel model = new DefaultTableModel(columnNames, 0);
+		DefaultTableModel model = new DefaultTableModel(columnNames, 0);
+		JTable table = new JTable(model);
+		table.setFillsViewportHeight(true);
+		JScrollPane scrollPane = new JScrollPane(table);
+		frame.add(scrollPane, BorderLayout.CENTER);
 
-			// Create JTable and set it to fill the viewport
-			JTable table = new JTable(model);
-			table.setFillsViewportHeight(true);
-			JScrollPane scrollPane = new JScrollPane(table);
-			frame.add(scrollPane, BorderLayout.CENTER);
+		// SQL query
+		String sql = "SELECT P.id AS booking_id, P.professor_id, U.firstName, U.lastName, P.booking_date, P.time_slot, P.room_name, P.room_category " +
+				"FROM unapproveBookings P " +
+				"INNER JOIN users U ON P.professor_id = U.idNumber";
 
-			// SQL query to select all data from the unapproveBookings table
-			String sql = "SELECT P.id AS booking_id, P.professor_id, U.firstName, U.lastName, P.booking_date, P.time_slot, P.room_name, P.room_category " +
-						 "FROM unapproveBookings P " +
-						 "INNER JOIN users U ON P.professor_id = U.idNumber";  // Corrected the alias in JOIN
+		// Refresh the table
+		refreshRoomBookingTable(model, sql);
 
-			// Refresh the table with the current data
-			refreshRoomBookingTable(model, connection, sql);  // Pass connection to refresh method
+		JPanel panel = new JPanel();
+		JLabel userLabel = new JLabel("Enter Booking ID to approve/decline:");
+		panel.add(userLabel);
+		JTextField enterUser = new JTextField(15);
+		panel.add(enterUser);
 
-			// Add a text field and dropdown to approve/decline room bookings
-			JPanel panel = new JPanel();
-			JLabel userLabel = new JLabel("Enter Booking ID to approve/decline:");
-			panel.add(userLabel);
-			JTextField enterUser = new JTextField(15);
-			panel.add(enterUser);
+		// Dropdown for actions (Approve/Decline)
+		String[] actions = {"Option", "Approve", "Decline"};
+		JComboBox<String> bookingActionDropdown = new JComboBox<>(actions);
+		panel.add(bookingActionDropdown);
 
-			// Dropdown for actions (Approve/Decline)
-			JComboBox<String> bookingActionDropdown = new JComboBox<>(new String[]{"Option", "Approve", "Decline"});
-			panel.add(bookingActionDropdown);
-
-			// Action listener for dropdown
-			bookingActionDropdown.addActionListener(new ActionListener() {
-				public void actionPerformed(ActionEvent e) {
-					String selectedAction = (String) bookingActionDropdown.getSelectedItem();
-					String bookingIdText = enterUser.getText().trim();
-					if (bookingIdText.isEmpty()) {
-						JOptionPane.showMessageDialog(null, "Please enter a Booking ID!", "Error", JOptionPane.ERROR_MESSAGE);
-					} else {
-						try {
-							int bookingId = Integer.parseInt(bookingIdText);
-							if ("Option".equals(selectedAction)) {
-								JOptionPane.showMessageDialog(null, "Please choose an action to perform!", "Warning", JOptionPane.WARNING_MESSAGE);
-							} else if ("Approve".equals(selectedAction)) {
-								approveBooking(bookingId, connection);  // Approve the booking
-								enterUser.setText("");
-								refreshRoomBookingTable(model, connection, sql);  // Refresh after action
-							} else if ("Decline".equals(selectedAction)) {
-								declineBooking(bookingId, connection);  // Decline the booking
-								enterUser.setText("");
-								refreshRoomBookingTable(model, connection, sql);  // Refresh after action
-							}
-						} catch (NumberFormatException ex) {
-							JOptionPane.showMessageDialog(null, "Invalid Booking ID format!", "Error", JOptionPane.ERROR_MESSAGE);
-						}
-					}
+		// Action listener for dropdown
+		bookingActionDropdown.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				String selectedAction = (String) bookingActionDropdown.getSelectedItem();
+				String bookingIdText = enterUser.getText().trim();
+				if (bookingIdText.isEmpty()) {
+					JOptionPane.showMessageDialog(null, "Please enter a Booking ID!", "Error", JOptionPane.ERROR_MESSAGE);
+					return;
 				}
-			});
 
-			// Add the panel with input fields at the bottom of the frame
-			frame.add(panel, BorderLayout.SOUTH);
-			frame.setVisible(true);
-			
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-	}
-	
-	private static void declineBooking(int id, Connection connection) {
-		String sql = "DELETE FROM unapproveBookings WHERE id = ?";
-
-		try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-			stmt.setInt(1, id);  // Set the ID parameter
-
-			int rowsAffected = stmt.executeUpdate();  // Execute the delete query
-
-			if (rowsAffected > 0) {
-				JOptionPane.showMessageDialog(null, "Booking with ID " + id + " has been declined.", "Success", JOptionPane.INFORMATION_MESSAGE);
-			} else {
-				JOptionPane.showMessageDialog(null, "No booking found with ID " + id, "Error", JOptionPane.ERROR_MESSAGE);
+				try {
+					int bookingId = Integer.parseInt(bookingIdText);
+					if ("Option".equals(selectedAction)) {
+						JOptionPane.showMessageDialog(null, "Please choose an action to perform!", "Warning", JOptionPane.WARNING_MESSAGE);
+					} else if ("Approve".equals(selectedAction)) {
+						approveBooking(bookingId);  // Approve the booking
+						refreshRoomBookingTable(model, sql); // Refresh the table after approval
+					} else if ("Decline".equals(selectedAction)) {
+						declineBooking(bookingId);  // Decline the booking
+						refreshRoomBookingTable(model, sql); // Refresh the table after declining
+					}
+				} catch (NumberFormatException ex) {
+					JOptionPane.showMessageDialog(null, "Invalid Booking ID format!", "Error", JOptionPane.ERROR_MESSAGE);
+				}
 			}
+		});
 
-		} catch (SQLException e) {
-			JOptionPane.showMessageDialog(null, "Error deleting booking: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-			e.printStackTrace();
-		}
+		frame.add(panel, BorderLayout.SOUTH);
+		frame.setVisible(true);
 	}
 
+	
+	private static void declineBooking(int id) {
+        String sql = "DELETE FROM unapproveBookings WHERE id = ?";
+        
+        try (Connection connection = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/ProgMP?useSSL=false", "root", "Vianca");
+             PreparedStatement stmt = connection.prepareStatement(sql)) {
+            
+            // Set the id parameter to the booking ID that is passed to the method
+            stmt.setInt(1, id);
+            
+            // Execute the delete query
+            int rowsAffected = stmt.executeUpdate();
+            
+            if (rowsAffected > 0) {
+                System.out.println("Booking with ID " + id + " has been declined and removed.");
+            } else {
+                System.out.println("No booking found with ID " + id);
+            }
+            
+        } catch (SQLException e) {
+            System.out.println("Error deleting booking: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
 	
 	//Moves the user from non-approve to the table of all approved bookings
-    private static void approveBooking(int idNumber, Connection connection) {
+    private static void approveBooking(int idNumber) {
+		// SQL queries
 		String selectSql = "SELECT * FROM unapproveBookings WHERE id = ?";
 		String deleteSql = "DELETE FROM unapproveBookings WHERE id = ?";
 		String insertSql = "INSERT INTO approvedBookings (professor_id, booking_date, time_slot, room_name, room_category) VALUES (?, ?, ?, ?, ?)";
 
-		try (PreparedStatement selectStmt = connection.prepareStatement(selectSql)) {
-			selectStmt.setInt(1, idNumber);
-			try (ResultSet rs = selectStmt.executeQuery()) {
+		try (Connection connection = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/ProgMP?useSSL=false", "root", "Vianca")) {
+			// Fetch the booking from unapproveBookings table by ID
+			try (PreparedStatement selectStmt = connection.prepareStatement(selectSql)) {
+				selectStmt.setInt(1, idNumber);
+				ResultSet rs = selectStmt.executeQuery();
 
 				if (rs.next()) {
 					// If the booking exists, move it to approvedBookings table
@@ -681,7 +677,7 @@ public class ProgramAdmin implements ActionListener {
 					String roomName = rs.getString("room_name");
 					String roomCategory = rs.getString("room_category");
 
-					// Insert the booking into the approvedBookings table
+					// Insert the booking into approvedBookings table
 					try (PreparedStatement insertStmt = connection.prepareStatement(insertSql)) {
 						insertStmt.setString(1, professorId);
 						insertStmt.setDate(2, bookingDate);
@@ -708,14 +704,16 @@ public class ProgramAdmin implements ActionListener {
 			JOptionPane.showMessageDialog(null, "Error approving booking: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
 		}
 	}
- 
-	private static void refreshRoomBookingTable(DefaultTableModel model, Connection connection, String sql) {
-		model.setRowCount(0);  // Clear existing rows in the table
+	
+	private static void refreshRoomBookingTable(DefaultTableModel model, String sql) {
+		// Clear the existing rows in the table
+		model.setRowCount(0);
 
-		try (Statement stmt = connection.createStatement();
+		try (Connection connection = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/ProgMP?useSSL=false", "root", "Vianca");
+			 Statement stmt = connection.createStatement();
 			 ResultSet rs = stmt.executeQuery(sql)) {
 
-			// Fetch data and display it in the table
+			// Fetch data and display it to the table
 			while (rs.next()) {
 				int bookingId = rs.getInt("booking_id");
 				int professorId = rs.getInt("professor_id");
@@ -730,8 +728,10 @@ public class ProgramAdmin implements ActionListener {
 			}
 
 		} catch (SQLException e) {
-			e.printStackTrace();
-			JOptionPane.showMessageDialog(null, "Failed to fetch data from the database.", "Error", JOptionPane.ERROR_MESSAGE);
+			// Enhanced error handling: Print the full SQL exception message
+			System.err.println("SQL Error: " + e.getMessage());
+			e.printStackTrace();  // This will provide more details in the log
+			JOptionPane.showMessageDialog(null, "Failed to fetch data from the database: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
 		}
 	}
 
@@ -742,7 +742,7 @@ public class ProgramAdmin implements ActionListener {
 		frame.setLocationRelativeTo(null);
 
 		// Define column names for the room table
-		String[] columnNames = {"Room ID", "Category", "Room Name", "Max Capacity", "Tags", "Building"};
+		String[] columnNames = {"Category", "Room Name", "Max Capacity", "Tags", "Building"};
 
 		// Create DefaultTableModel with empty data
 		DefaultTableModel model = new DefaultTableModel(columnNames, 0);
@@ -754,7 +754,7 @@ public class ProgramAdmin implements ActionListener {
 		frame.add(scrollPane, BorderLayout.CENTER);
 
 		// SQL query to retrieve all rooms
-		String sql = "SELECT id, category, room_name, max_capacity, tags, building FROM rooms";
+		String sql = "SELECT category, room_name, max_capacity, tags, building FROM rooms";
 
 		try (Connection connection = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306/ProgMP?useSSL=false", "root", "Vianca");
 			 Statement statement = connection.createStatement();
@@ -762,7 +762,6 @@ public class ProgramAdmin implements ActionListener {
 
 			// Loop through the result set and populate the table model
 			while (resultSet.next()) {
-				int roomId = resultSet.getInt("id");
 				String category = resultSet.getString("category");
 				String roomName = resultSet.getString("room_name");
 				int maxCapacity = resultSet.getInt("max_capacity");
@@ -770,7 +769,7 @@ public class ProgramAdmin implements ActionListener {
 				String building = resultSet.getString("building");
 
 				// Add row to the table model
-				model.addRow(new Object[]{roomId, category, roomName, maxCapacity, tags, building});
+				model.addRow(new Object[]{category, roomName, maxCapacity, tags, building});
 			}
 
 		} catch (SQLException e) {

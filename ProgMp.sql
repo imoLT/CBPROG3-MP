@@ -18,7 +18,7 @@ CREATE TABLE nonApprovedUsers (
 
 -- Create the 'users' table with 'idNumber' as INT(8)
 CREATE TABLE IF NOT EXISTS users (
-    idNumber INT(8) NOT NULL PRIMARY KEY,  -- Use INT(8) for idNumber
+    idNumber INT(8) NOT NULL PRIMARY KEY,  
     firstName VARCHAR(50),
     lastName VARCHAR(50),
     password VARCHAR(255) NOT NULL,
@@ -27,13 +27,13 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Insert default program admin
 INSERT INTO users (idNumber, firstName, lastName, password, role)
-VALUES (12345678, 'April', 'Alvarez', 'password123', 'Program Admin');  -- Use INT(8) for idNumber
+VALUES (12345678, 'April', 'Alvarez', 'password123', 'Program Admin');  
 
 INSERT INTO users (idNumber, firstName, lastName, password, role)
-VALUES (12121212, 'Rienzel', 'Galang', 'hi', 'ITS');  -- Use INT(8) for idNumber
+VALUES (12121212, 'Rienzel', 'Galang', 'hi', 'ITS'); 
 
 INSERT INTO users (idNumber, firstName, lastName, password, role)
-VALUES (13131313, 'Akisha', 'Africa', 'hi', 'Professor');  -- Use INT(8) for idNumber
+VALUES (13131313, 'Akisha', 'Africa', 'hi', 'Professor');  
 
 -- Create the 'rooms' table
 CREATE TABLE IF NOT EXISTS rooms (
@@ -44,28 +44,26 @@ CREATE TABLE IF NOT EXISTS rooms (
     building VARCHAR(255) NOT NULL
 );
 
--- Create 'approvedBookings' table with professor_id as INT(8) to match 'users' table
 CREATE TABLE approvedBookings (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    professor_id INT(8),  -- professor_id is INT(8), matching 'idNumber' in 'users'
-    booking_date DATE,    -- Correct column name for the date
+    professor_id INT(8),  
+    booking_date DATE,    
     time_slot VARCHAR(255),
     room_name VARCHAR(255),
     room_category VARCHAR(255),
     building VARCHAR(255),
-    FOREIGN KEY (professor_id) REFERENCES users(idNumber)  -- Foreign key to 'users' table
+    FOREIGN KEY (professor_id) REFERENCES users(idNumber)  -- Foreign key to users table
 );
 
--- Create 'unapproveBookings' table with professor_id as INT(8) to match 'users' table
 CREATE TABLE IF NOT EXISTS unapproveBookings (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    professor_id INT(8),  -- Use INT(8) to match 'idNumber'
+    professor_id INT(8),  
     booking_date DATE,
     time_slot VARCHAR(255),
     room_name VARCHAR(255),
     room_category VARCHAR(255),
     building VARCHAR(255),
-    FOREIGN KEY (professor_id) REFERENCES users(idNumber)  -- Foreign key constraint
+    FOREIGN KEY (professor_id) REFERENCES users(idNumber) 
 );
 
 -- Create 'regularSchedules' table
@@ -76,7 +74,7 @@ CREATE TABLE IF NOT EXISTS regularSchedules (
     schedule_dates TEXT NOT NULL, -- Stores selected dates as a comma-separated string
     time_slot VARCHAR(255) NOT NULL,
     room_name VARCHAR(255) NOT NULL,
-    FOREIGN KEY (professor_id) REFERENCES users(idNumber)  -- Foreign key constraint to 'users'
+    FOREIGN KEY (professor_id) REFERENCES users(idNumber)  
 );
 
 -- Create 'security_requests' table
@@ -88,7 +86,7 @@ CREATE TABLE IF NOT EXISTS security_requests (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp for when the request was created
     accepted_by INT(8) DEFAULT NULL,            -- The ITS user who accepted the request, NULL if not accepted yet
     updated_at TIMESTAMP DEFAULT NULL,          -- Timestamp when the request was last updated
-    FOREIGN KEY (accepted_by) REFERENCES users(idNumber)  -- Reference to the 'users' table for ITS user ID
+    FOREIGN KEY (accepted_by) REFERENCES users(idNumber)  -- Reference to the users table for ITS user ID
 );
 
 -- Create 'its_requests' table
@@ -119,7 +117,7 @@ ADD CONSTRAINT fk_professor_regularSchedules
 FOREIGN KEY (professor_id) REFERENCES users(idNumber) ON DELETE CASCADE;
 
 ALTER TABLE its_requests
-DROP FOREIGN KEY its_requests_ibfk_1;  -- Drop the old foreign key, replace with actual name
+DROP FOREIGN KEY its_requests_ibfk_1;  
 
 ALTER TABLE its_requests
 ADD CONSTRAINT fk_accepted_by
